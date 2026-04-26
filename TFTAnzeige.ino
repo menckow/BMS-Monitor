@@ -60,34 +60,17 @@ void printValueBox(String valStr, String unitStr, int x, int y, int w, int h, ui
   canvas.deleteSprite();
 }
 
-// Global persistent battery sprite to prevent heap fragmentation failures
-TFT_eSprite batSprite(&tft);
-bool batSpriteCreated = false;
-
-// Draw a modern Battery Arc / Stack
+// Draw a modern Battery Arc / Stack directly on TFT, using a Micro-Sprite only for text (Saves 19.5 KB RAM!)
 void drawBattery(int x, int y, int percent, bool force = false) {
   static int last_percent = -1;
   if(force) last_percent = -1;
   if(percent == last_percent && percent != -1) return; // Only draw when changed!
   last_percent = percent;
 
-  // Create Sprite once to reserve the 21KB RAM permanently, preventing fragmentation deaths
-  if (!batSpriteCreated) {
-      if (batSprite.createSprite(60, 180) == nullptr) {
-          Serial.println("ERROR: Battery Sprite RAM allocation failed!");
-          return; // Give up gracefully if no RAM
-      }
-      batSpriteCreated = true;
-  }
-
-  batSprite.fillSprite(TFT_BLACK);
-
-  // Battery shell
-  batSprite.drawRoundRect(0, 5, 55, 175, 4, TFT_DARKGREY);
-  batSprite.fillRect(20, 0, 15, 6, TFT_DARKGREY); // Tip
-
-  // clear inner
-  batSprite.fillRect(2, 7, 51, 171, TFT_BLACK);
+  // Battery shell (Direct drawing, no huge memory allocation needed)
+  tft.drawRoundRect(x, y + 5, 55, 175, 4, TFT_DARKGREY);
+  tft.fillRect(x + 20, y, 15, 6, TFT_DARKGREY); // Tip
+  tft.fillRect(x + 2, y + 7, 51, 171, TFT_BLACK); // clear inner
 
   // set color based on SOC
   uint16_t color = TFT_GREEN;
@@ -97,23 +80,37 @@ void drawBattery(int x, int y, int percent, bool force = false) {
   
   // segment height calc
   int fillHeight = map(percent, 0, 100, 0, 169);
-  int fillY = (5 + 174) - fillHeight;
+  int fillY = (y + 5 + 174) - fillHeight;
   
   if (fillHeight > 0) {
-    batSprite.fillRect(3, fillY, 49, fillHeight, color);
+    tft.fillRect(x + 3, fillY, 49, fillHeight, color);
   }
 
-  // Print Percent inside. Since it's a Sprite, TFT_eSPI will natively alpha-blend 
-  // the smooth font reading from the RAM buffer, perfectly blending over the split background!
-  batSprite.loadFont(NotoSansBold15);
-  batSprite.setTextColor((fillHeight > 90) ? TFT_BLACK : TFT_WHITE);
-  batSprite.setTextDatum(MC_DATUM);
-  batSprite.drawString(String(percent) + "%", 27, 95);
-  batSprite.unloadFont();
+  // --- MICRO SPRITE FÜR GESTOCHEN SCHARFE TEXT-GLÄTTUNG ---
+  // Ein 46x26 Sprite frisst nur 2.3 KB RAM anstelle von 21 KB für die komplette Batterie.
+  // Das verhindert den "StoreProhibited" Core-Panic bei aktiven WLAN/Webserver-Requests!
+  TFT_eSprite txtSprite = TFT_eSprite(&tft);
+  int tW = 46;
+  int tH = 26;
+  int tX = x + 4;  // ca. Mitte der Batterie (x+27)
+  int tY = y + 82; // y+95 ist die Mitte 
   
-  // Push physical pixels
-  batSprite.pushSprite(x, y);
-  // Absicht: deleteSprite() entfernt, um RAM dauerhaft zu reservieren!
+  if (txtSprite.createSprite(tW, tH) != nullptr) {
+      // Exakten Hintergrund im Mini-Fenster mathematisch rekonstruieren (split color)
+      for (int sy = 0; sy < tH; sy++) {
+          uint16_t rowColor = ((tY + sy) >= fillY) ? color : TFT_BLACK;
+          txtSprite.drawFastHLine(0, sy, tW, rowColor);
+      }
+      
+      txtSprite.loadFont(NotoSansBold15);
+      txtSprite.setTextColor((fillHeight > 90) ? TFT_BLACK : TFT_WHITE);
+      txtSprite.setTextDatum(MC_DATUM);
+      txtSprite.drawString(String(percent) + "%", tW / 2, tH / 2);
+      txtSprite.unloadFont();
+      
+      txtSprite.pushSprite(tX, tY);
+      txtSprite.deleteSprite();
+  }
 }
 
 void voltage(){
