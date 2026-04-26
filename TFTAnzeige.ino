@@ -60,6 +60,10 @@ void printValueBox(String valStr, String unitStr, int x, int y, int w, int h, ui
   canvas.deleteSprite();
 }
 
+// Global persistent battery sprite to prevent heap fragmentation failures
+TFT_eSprite batSprite(&tft);
+bool batSpriteCreated = false;
+
 // Draw a modern Battery Arc / Stack
 void drawBattery(int x, int y, int percent, bool force = false) {
   static int last_percent = -1;
@@ -67,9 +71,15 @@ void drawBattery(int x, int y, int percent, bool force = false) {
   if(percent == last_percent && percent != -1) return; // Only draw when changed!
   last_percent = percent;
 
-  // Create Sprite for completely flicker-free, alpha-blended AA rendering
-  TFT_eSprite batSprite = TFT_eSprite(&tft);
-  batSprite.createSprite(60, 180);
+  // Create Sprite once to reserve the 21KB RAM permanently, preventing fragmentation deaths
+  if (!batSpriteCreated) {
+      if (batSprite.createSprite(60, 180) == nullptr) {
+          Serial.println("ERROR: Battery Sprite RAM allocation failed!");
+          return; // Give up gracefully if no RAM
+      }
+      batSpriteCreated = true;
+  }
+
   batSprite.fillSprite(TFT_BLACK);
 
   // Battery shell
@@ -103,7 +113,7 @@ void drawBattery(int x, int y, int percent, bool force = false) {
   
   // Push physical pixels
   batSprite.pushSprite(x, y);
-  batSprite.deleteSprite();
+  // Absicht: deleteSprite() entfernt, um RAM dauerhaft zu reservieren!
 }
 
 void voltage(){
