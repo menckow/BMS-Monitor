@@ -1,6 +1,6 @@
 //  ----- BLE stuff -----
 static BLERemoteCharacteristic *pRemoteCharacteristic;
-static BLEAdvertisedDevice *myDevice;
+BLEAdvertisedDevice *myDevice;
 BLERemoteService *pRemoteService;
 // The remote service we wish to connect to. Needs check/change when other BLE module used.
 static BLEUUID serviceUUID("0000ff00-0000-1000-8000-00805f9b34fb");             //xiaoxiang bms original module
@@ -217,12 +217,56 @@ void bleStartup()
   // Scanne volle 5 Sekunden blockierend, ohne Cache:
   pBLEScan->start(5, false);
 
-  if (foundDevicesCount == 1) {
-     myDevice = foundDevices[0];
-     doConnect = true;
-     doScan = true;
-  } else if (foundDevicesCount > 1) {
-     selectBmsMenu();
+  // Auto-Assign Logic if MAC configuration is empty:
+  if (foundDevicesCount >= 1 && BMS_MAC_1.length() < 17) {
+      BMS_MAC_1 = String(foundDevices[0]->getAddress().toString().c_str());
+      putEEprom(210, BMS_MAC_1);
+      EEPROM.commit();
+  }
+  if (foundDevicesCount >= 2 && BMS_MAC_2.length() < 17) {
+      BMS_MAC_2 = String(foundDevices[1]->getAddress().toString().c_str());
+      putEEprom(240, BMS_MAC_2);
+      EEPROM.commit();
+  }
+
+  // Automatic connection sequence based on NVS MACs
+  bool foundMatch = false;
+  
+  if (foundDevicesCount > 0) {
+      // 1. Suche nach BMS 1 in der Umgebung
+      for (int i = 0; i < foundDevicesCount; i++) {
+         if (String(foundDevices[i]->getAddress().toString().c_str()).equalsIgnoreCase(BMS_MAC_1)) {
+             myDevice = foundDevices[i];
+             doConnect = true;
+             doScan = true;
+             foundMatch = true;
+             break;
+         }
+      }
+      
+      // 2. Falls BMS 1 nicht da ist, checke ob BMS 2 in der Umgebung ist
+      if (!foundMatch && BMS_MAC_2.length() >= 17) {
+          for (int i = 0; i < foundDevicesCount; i++) {
+             if (String(foundDevices[i]->getAddress().toString().c_str()).equalsIgnoreCase(BMS_MAC_2)) {
+                 myDevice = foundDevices[i];
+                 doConnect = true;
+                 doScan = true;
+                 foundMatch = true;
+                 break;
+             }
+          }
+      }
+      
+      // 3. Fallback: Keine bekannten BMS in der Nähe
+      if (!foundMatch) {
+          if (foundDevicesCount == 1) {
+              myDevice = foundDevices[0]; // Das Einzige was da ist nehmen
+              doConnect = true;
+              doScan = true;
+          } else {
+              selectBmsMenu(); // Auswahlmenü zeigen für fremde Batterien
+          }
+      }
   }
 
   // Korrekten BT_Name extrahieren fuer Globale Variablen

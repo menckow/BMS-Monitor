@@ -45,7 +45,7 @@ const String Build    = "Build " + String(__DATE__) + ",\n" + String(  __TIME__)
 #define BUTTON_Links  38
 #define BUTTON_Rechts 39
 
-#define EEPROM_Size 200
+#define EEPROM_Size 300 // Erweitert von 200 auf 300 für 2x MAC Adressen
 
 TFT_eSPI tft = TFT_eSPI();
 
@@ -81,6 +81,8 @@ String   sLogFileName = "Log.txt",
          WLAN_PASS   = "",
          myPassword  = "",
          sIPAdresse  = "192.168.4.1",
+         BMS_MAC_1   = "",
+         BMS_MAC_2   = "",
          CSV_Content,
          Content,
          CSV_Titel,
@@ -217,6 +219,8 @@ void setup()
   WLAN_SSID  = getEEprom(60);                                        // Werte aus EEPROM
   WLAN_PASS  = getEEprom(110);
   Datum_alt  = getEEprom(160);
+  BMS_MAC_1  = getEEprom(210);
+  BMS_MAC_2  = getEEprom(240);
 
   // Wenn das EEPROM noch leer/unbeschrieben ist, Standard-Werte setzen
   if (WLAN_SSID.length() == 0 || WLAN_SSID.length() >= 49)
@@ -233,6 +237,7 @@ void setup()
     putEEprom(60, WLAN_SSID);
     putEEprom(110, WLAN_PASS);
     putEEprom(160, Datum_alt);
+    // BMS MACs lassen wir absichtlich auf leer (""), bis sie im Web-UI befüllt werden oder der Auto-Scanner anschlägt
     EEPROM.commit();
   }
 
@@ -261,6 +266,8 @@ void setup()
       putEEprom(60, WLAN_SSID);
       putEEprom(110, WLAN_PASS);
       putEEprom(160, Datum_alt);
+      putEEprom(210, BMS_MAC_1); // Beim Factory-Reset auch die leeren MACs überschreiben
+      putEEprom(240, BMS_MAC_2);
       EEPROM.commit();
       
       tft.setCursor(1, 60);
@@ -450,14 +457,65 @@ void loop()
 
   if (digitalRead(BUTTON_Rechts) == LOW)
   {
-    Serial.println("rechts");
-    set_mosfet_control(bitRead(packBasicInfo.MosfetStatus, 1),
-                       !bitRead(packBasicInfo.MosfetStatus, 0));     // Setzte MOS_FET ein/aus
-    delay(100);
-    while (digitalRead(BUTTON_Rechts) == LOW)
-    {
-      delay(100);
+    Serial.println("rechts geklickt - Toggle BMS!");
+    if (BMS_MAC_1.length() >= 17 && BMS_MAC_2.length() >= 17) {
+        extern BLEAdvertisedDevice* myDevice;
+        extern BLEAdvertisedDevice* foundDevices[];
+        extern int foundDevicesCount;
+        
+        if (BLE_client_connected && mypClient != nullptr && myDevice != nullptr) {
+            String currMac = String(myDevice->getAddress().toString().c_str());
+            String targetMac = currMac.equalsIgnoreCase(BMS_MAC_1) ? BMS_MAC_2 : BMS_MAC_1;
+            
+            Serial.println("Wechsle BMS von " + currMac + " nach " + targetMac);
+            
+            // Clean disconnect des aktuellen BMS
+            mypClient->disconnect();
+            delay(400); 
+            delete mypClient;
+            mypClient = nullptr;
+            BLE_client_connected = false;
+            
+            // Ziel in den gecachten Geräten suchen
+            bool foundToggle = false;
+            for (int i = 0; i < foundDevicesCount; i++) {
+                if (String(foundDevices[i]->getAddress().toString().c_str()).equalsIgnoreCase(targetMac)) {
+                    myDevice = foundDevices[i];
+                    doConnect = true;
+                    foundToggle = true; 
+                    break;
+                }
+            }
+            
+            if (!foundToggle) {
+               Serial.println("BMS ausser Reichweite beim Start. Reboote ESP32 fuer frischen Hardware-Scan...");
+               ESP.restart(); // Fallback wenn Batterie 2 beim booten nicht angeschaltet war
+            } else {
+               // Optische Rückmeldung für Benutzer über den Wechsel
+               tft.fillScreen(TFT_BLACK);
+               tft.loadFont(NotoSansBold15);
+               tft.setTextColor(TFT_YELLOW);
+               tft.setTextDatum(MC_DATUM);
+               tft.drawString("Wechsle Akku...", 120, 100);
+               tft.unloadFont();
+            }
+        }
+    } else {
+        // Hinweis falls die Einstellungen noch nicht eingetragen / erkannt wurden!
+        tft.fillScreen(TFT_RED);
+        tft.loadFont(NotoSansBold15);
+        tft.setTextColor(TFT_WHITE);
+        tft.setTextDatum(MC_DATUM);
+        tft.drawString("Fehlende Web-Konfig", 120, 80);
+        tft.drawString("Bitte erst 2 MACs eintragen!", 120, 110);
+        tft.unloadFont();
+        delay(2000);
+        tft.fillScreen(TFT_BLACK);
+        force_battery_redraw = true;
     }
+    
+    delay(100);
+    while (digitalRead(BUTTON_Rechts) == LOW) delay(100);
   }
 
   bleRequestData();                                                // BMS abfragen

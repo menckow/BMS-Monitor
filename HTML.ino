@@ -352,6 +352,8 @@ void SetUpDaten()                                                               
       if (server.argName(i) == "myPassword") { myPassword = server.arg(i); putEEprom(10, myPassword); }
       if (server.argName(i) == "SSID_WLAN") { WLAN_SSID = server.arg(i); putEEprom(60, WLAN_SSID); }
       if (server.argName(i) == "PASS_WLAN") { WLAN_PASS = server.arg(i); putEEprom(110, WLAN_PASS); }
+      if (server.argName(i) == "BMS_MAC_1") { BMS_MAC_1 = server.arg(i); putEEprom(210, BMS_MAC_1); }
+      if (server.argName(i) == "BMS_MAC_2") { BMS_MAC_2 = server.arg(i); putEEprom(240, BMS_MAC_2); }
 
       if (server.argName(i) == "YEAR")    intYear   = server.arg(i).toInt();
       if (server.argName(i) == "MONTH")   intMonth  = server.arg(i).toInt();
@@ -398,6 +400,11 @@ void SetUpDaten()                                                               
   Content += "<tr><td>WLAN SSID</td><td><input type='text' name='SSID_WLAN' minlength='8' maxlength='50' value='" + WLAN_SSID + "'></td></tr>";
   Content += "<tr><td>WLAN Passwort</td><td><input type='text' name='PASS_WLAN' minlength='8' maxlength='50' value='" + WLAN_PASS + "'></td></tr>";
   Content += "<tr><td>AccessPoint Passwort</td><td><input type='text' name='myPassword' minlength='8' maxlength='50' value='" + myPassword + "'></td></tr>";
+  Content += "</table></div>";
+
+  Content += "<div class='card'><h3>BMS Batterie Zuordnungen</h3><table class='info-table'>";
+  Content += "<tr><td>Batterie 1 MAC<br><small>Wird für Fast-Switch per Taste benötigt</small></td><td><input type='text' name='BMS_MAC_1' maxlength='17' placeholder='AA:BB:CC:DD:EE:FF' value='" + BMS_MAC_1 + "'></td></tr>";
+  Content += "<tr><td>Batterie 2 MAC</td><td><input type='text' name='BMS_MAC_2' maxlength='17' placeholder='AA:BB:CC:DD:EE:FF' value='" + BMS_MAC_2 + "'></td></tr>";
   Content += "</table><br><button type='submit' class='btn' style='width:100%;margin-bottom:10px'>Speichern & Anwenden</button></form></div>";
 
   Content += "<div class='card'><h3>Aktionen</h3><table class='info-table'>";
