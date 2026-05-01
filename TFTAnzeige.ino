@@ -134,29 +134,29 @@ void TFT_Anzeige()
   if (Screensaver >= 60)                                                      // Bildschirm schonen xx Sek.
   {
     analogWrite(Backlight, 50);
-    int PosX = random(5, 150);                                                // x-Werte 0 bis rechts
-    int PosY = random(20, 160);                                               // y-Werte 0 bis unten
+    int PosX = random(5, 120);                                                // x-Werte anpassen für grosse Schrift
+    int PosY = random(35, 75);                                                // y-Werte anpassen für grosse Schrift
     tft.fillScreen(TFT_BLACK);                                            // Hintergrundfüllung
     
-    tft.loadFont(NotoSansBold15);
+    tft.loadFont(NotoSansBold36);
     uint16_t color = daheim ? TFT_GREEN : TFT_WHITE;
-    tft.setTextColor(color);
+    tft.setTextColor(color, TFT_BLACK);
     
     tft.setCursor(PosX, PosY);
     tft.print(String(packBasicInfo.Volts / 1000.0, 2) + " V");
-    tft.setCursor(PosX, PosY + 25);
+    tft.setCursor(PosX, PosY + 40);
     tft.print(String(packBasicInfo.Amps / 1000.0, 1) + " A");
-    tft.setCursor(PosX, PosY + 50);
+    tft.setCursor(PosX, PosY + 80);
     tft.print(String(packBasicInfo.CapacityRemainAh / 1000.0, 1) + " Ah");
     
-    tft.loadFont(NotoSansBold15);
-    tft.setCursor(PosX, PosY + 75);
+    tft.setCursor(PosX, PosY + 120);
     digitalWrite(14, HIGH);
     delay(1);
     float measurement = (float) analogRead(35); //VBAT Pin 35=T4 34=TS
     float battery_voltage = (measurement / 4095.0) * 7.26;
     digitalWrite(14, LOW);
     tft.print(String(battery_voltage, 1) + " V LiPo");
+    tft.unloadFont();
   }
   else
   {
@@ -334,41 +334,38 @@ void lcdConnectingStatus(uint8_t state)
 //**************************************************
 void Fehler_Anzeige()
 {
-  tft.setTextColor(TFT_YELLOW);
-
-  String sUE = String(char(154));                        // https://theasciicode.com.ar/ ASCII-Tabelle
+  tft.setTextColor(TFT_YELLOW, TFT_BLACK);
 
   Serial.print("Fehlermeldungen");
 
-  tft.setTextFont(1); // Reset to classic built-in font for the error log!
-  tft.setTextSize(2);
-  tft.setCursor(5, 10);
+  tft.loadFont(NotoSansBold15);
+  tft.setCursor(5, 15);
   tft.println("Fehlermeldungen:");
 
   if (packBasicInfo.ProtectionStatus == 0)
   {
-    tft.setTextColor(TFT_YELLOW);
+    tft.setTextColor(TFT_YELLOW, TFT_BLACK);
     tft.setCursor(5, 45);
     tft.println("-KEINE-");
   }
-  tft.setCursor(5, 35);
-  tft.setTextColor(TFT_RED);
+  tft.setCursor(5, 45);
+  tft.setTextColor(TFT_RED, TFT_BLACK);
 
-  tft.println(bitRead(packBasicInfo.ProtectionStatus, 0) ? "Zellen-" + sUE + "berspannung" : " ");
-  tft.println(bitRead(packBasicInfo.ProtectionStatus, 1) ? "Zellen-Unterspannung" : " ");
-  tft.println(bitRead(packBasicInfo.ProtectionStatus, 2) ? "Batterie-" + sUE + "berspannung" : " ");
-  tft.println(bitRead(packBasicInfo.ProtectionStatus, 3) ? "Batterie-Unterspannung" : " ");
+  if (bitRead(packBasicInfo.ProtectionStatus, 0)) tft.println("Zellen-Ueberspannung");
+  if (bitRead(packBasicInfo.ProtectionStatus, 1)) tft.println("Zellen-Unterspannung");
+  if (bitRead(packBasicInfo.ProtectionStatus, 2)) tft.println("Batterie-Ueberspannung");
+  if (bitRead(packBasicInfo.ProtectionStatus, 3)) tft.println("Batterie-Unterspannung");
 
-  tft.println(bitRead(packBasicInfo.ProtectionStatus, 4) ? "Laden " + sUE + "bertemperatur" : " ");
-  tft.println(bitRead(packBasicInfo.ProtectionStatus, 5) ? "Laden Untertemperatur" : " ");
-  tft.println(bitRead(packBasicInfo.ProtectionStatus, 6) ? "Entladen " + sUE + "bertemperatur" : " ");
-  tft.println(bitRead(packBasicInfo.ProtectionStatus, 7) ? "Entladen Untertemperatur" : " ");
+  if (bitRead(packBasicInfo.ProtectionStatus, 4)) tft.println("Laden Uebertemperatur");
+  if (bitRead(packBasicInfo.ProtectionStatus, 5)) tft.println("Laden Untertemperatur");
+  if (bitRead(packBasicInfo.ProtectionStatus, 6)) tft.println("Entladen Uebertemperatur");
+  if (bitRead(packBasicInfo.ProtectionStatus, 7)) tft.println("Entladen Untertemperatur");
 
-  tft.println(bitRead(packBasicInfo.ProtectionStatus, 8) ? "Laden " + sUE + "berstrom" : " ");
-  tft.println(bitRead(packBasicInfo.ProtectionStatus, 9) ? "Entladen " + sUE + "berstrom" : " ");
-  tft.println(bitRead(packBasicInfo.ProtectionStatus, 10) ? "Kurzschluss" : " ");
-  tft.println(bitRead(packBasicInfo.ProtectionStatus, 11) ? "IC Fehler" : " ");
-  tft.println(bitRead(packBasicInfo.ProtectionStatus, 12) ? "MOS-Software Lock-in" : " ");
+  if (bitRead(packBasicInfo.ProtectionStatus, 8)) tft.println("Laden Ueberstrom");
+  if (bitRead(packBasicInfo.ProtectionStatus, 9)) tft.println("Entladen Ueberstrom");
+  if (bitRead(packBasicInfo.ProtectionStatus, 10)) tft.println("Kurzschluss");
+  if (bitRead(packBasicInfo.ProtectionStatus, 11)) tft.println("IC Fehler");
+  if (bitRead(packBasicInfo.ProtectionStatus, 12)) tft.println("MOS-Software Lock-in");
 
   while (digitalRead(BUTTON_Mitte) == HIGH)
   {
@@ -376,5 +373,6 @@ void Fehler_Anzeige()
     esp_task_wdt_reset();                                            // Watchdog reset
   }
   delay(100);
+  tft.unloadFont();
   tft.fillScreen(TFT_BLACK);
 }

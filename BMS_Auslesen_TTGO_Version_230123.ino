@@ -389,6 +389,7 @@ void loop()
   if (digitalRead(BUTTON_Mitte) == LOW)
   {
     tft.fillScreen(TFT_BLACK);
+    tft.loadFont(NotoSansBold15);
     tft.setCursor(0, 40);
   }
   while (digitalRead(BUTTON_Mitte) == LOW)
@@ -397,12 +398,13 @@ void loop()
     if (Variable_X == 5)
     {
       tft.print("  ");
-      tft.setTextColor(TFT_RED);
+      tft.setTextColor(TFT_RED, TFT_BLACK);
     }
 
     tft.print("*");
     if (Variable_X >= 23)
     {
+      tft.unloadFont();
       tft.fillScreen(TFT_BLACK);
       Reset();
     }
@@ -411,6 +413,7 @@ void loop()
     Serial.println(Variable_X);
   }
   if (Variable_X != 0) {
+    tft.unloadFont();
     tft.fillScreen(TFT_BLACK);
     force_battery_redraw = true;
   }
@@ -483,6 +486,16 @@ void loop()
                     myDevice = foundDevices[i];
                     doConnect = true;
                     foundToggle = true; 
+                    
+                    String newBTName = myDevice->toString().c_str();
+                    int commaIndex = newBTName.indexOf(",");
+                    if (commaIndex > 6) {
+                        BT_Name = newBTName.substring(6, commaIndex);
+                    } else {
+                        BT_Name = myDevice->getName().c_str();
+                        if(BT_Name.length() == 0) BT_Name = "BMS-LOGGER";
+                    }
+                    
                     break;
                 }
             }
