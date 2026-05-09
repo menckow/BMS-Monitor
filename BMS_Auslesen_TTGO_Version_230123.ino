@@ -205,12 +205,12 @@ void setup()
 
   SPIFFS.begin(true);
 
-  // SD-Karte initialisieren (Standard Pins: CS=5, SCLK=18, MISO=19, MOSI=23)
-  if (SD.begin(5)) {
+  // SD-Karte initialisieren (CS auf Pin 13, da Pin 5 vom TFT_RST belegt ist)
+  if (SD.begin(13)) {
     sdCardActive = true;
     Serial.println("SD-Karte gefunden und aktiv.");
   } else {
-    Serial.println("Keine SD-Karte gefunden, nutze internen Speicher.");
+    Serial.println("Keine SD-Karte an Pin 13 gefunden, nutze internen Speicher.");
   }
 
   pinMode(Backlight, OUTPUT);                                        // LED als Output definieren
