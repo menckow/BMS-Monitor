@@ -102,6 +102,7 @@ String   sLogFileName = "Log.txt",
          ResetGrund   = "";
 
 bool     sdCardActive = false;                                       // Flag für SD-Karte
+int      lastLogMinute = -1;                                         // Merker für Intervall-Log
 
 String   FehlerName[] = {"Zellen Ueberspannung", "Zellen Unterspannung",
                          "Batterie Ueberspannung", "Batterie-Unterspannung",
@@ -783,12 +784,14 @@ void loop()
         Fehler_aktuell = true;
       }
 
-      if (AnzahlMessungen >= 5)                                       //  mindestens 5 Messungen
+      if (AnzahlMessungen >= 5)                                       // mindestens 5 Messungen
       {
         if (Fehler_aktuell || (now.minute() % Intervall.toInt() == 0  // wenn Fehler
-                               && now.second() > 10                   // oder 10 bis 20 Sek. nach Intervallablauf
+                               && now.minute() != lastLogMinute      // noch nicht in dieser Minute geloggt
+                               && now.second() > 10                  // 10 bis 20 Sek. nach Intervallablauf
                                && now.second() < 20))
         {
+          if (!Fehler_aktuell) lastLogMinute = now.minute();         // Minute merken (aber nur bei regulärem Log)
 
           sTemp = String(state_of_charge / AnzahlMessungen, 0) + ";";
           state_of_charge = 0;
