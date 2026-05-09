@@ -61,6 +61,17 @@ void WLAN_Ein()
     if (WiFi.status() == WL_CONNECTED)                           // Verbunden
     {
       Serial.println("ok");
+      
+      // NTP Zeit holen und RTC synchronisieren
+      Serial.println("NTP Sync...");
+      configTzTime("CET-1CEST,M3.5.0,M10.5.0/3", "pool.ntp.org", "time.google.com");
+      
+      struct tm timeinfo;
+      if (getLocalTime(&timeinfo, 5000)) {                               // Warte max 5 Sek auf Zeit
+        myRTC.adjust(DateTime(timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday, 
+                              timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec));
+        Serial.println("RTC synchronisiert.");
+      }
       Serial.print("RSSI:      "  );
       Serial.print(WiFi.RSSI());
       Serial.println(" dBm");

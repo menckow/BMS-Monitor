@@ -13,6 +13,7 @@ const String Version  = "BMS-Logger, Vers. 27.04.26";                           
 const String Build    = "Build " + String(__DATE__) + ",\n" + String(  __TIME__) ;
 
 
+#include <time.h>                                                  // NTP Zeit
 #include <esp_task_wdt.h>                                            // Watchdog
 #include <rom/rtc.h>                                                 // ResetGrund
 #include <RTClib.h>                                                  // in RTClib ist WIRE.LIB drin
