@@ -27,6 +27,7 @@ const String Build    = "Build " + String(__DATE__) + ",\n" + String(  __TIME__)
 #include "EEPROM.h"
 #include "SPIFFS.h"
 #include <WiFi.h>
+#include <SD.h>
 #include <analogWrite.h>
 #include "soc/soc.h"                                                 // Disable brownour problems
 #include "soc/rtc_cntl_reg.h"
@@ -99,6 +100,8 @@ String   sLogFileName = "Log.txt",
          Hinweis      = "Leerlauf",
          sRestZeit    = "",
          ResetGrund   = "";
+
+bool     sdCardActive = false;                                       // Flag für SD-Karte
 
 String   FehlerName[] = {"Zellen Ueberspannung", "Zellen Unterspannung",
                          "Batterie Ueberspannung", "Batterie-Unterspannung",
@@ -200,6 +203,14 @@ void setup()
   EEPROM.begin(EEPROM_Size);
 
   SPIFFS.begin(true);
+
+  // SD-Karte initialisieren (Standard Pins: CS=5, SCLK=18, MISO=19, MOSI=23)
+  if (SD.begin(5)) {
+    sdCardActive = true;
+    Serial.println("SD-Karte gefunden und aktiv.");
+  } else {
+    Serial.println("Keine SD-Karte gefunden, nutze internen Speicher.");
+  }
 
   pinMode(Backlight, OUTPUT);                                        // LED als Output definieren
   analogWrite(Backlight, 200);                                       // Helligkeit vorgeben

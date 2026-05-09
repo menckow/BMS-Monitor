@@ -129,6 +129,7 @@ void WLAN_Ein()
     }
   }
   server.on("/", handleRoot);
+  server.on("/Chart", ChartSeite);
   server.on("/format", formatSpeicher);
   server.on("/Setup",  SetUpDaten);                                            // Daten für das Beispiel xxx.xxx.xxx.xxx/Setup
   server.on("/Fehlerloeschen", Fehlerloeschen);

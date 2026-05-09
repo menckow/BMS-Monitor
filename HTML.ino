@@ -71,7 +71,7 @@ void mache_HTML_Seite()                                                        /
   
   // Header / Navigation
   Content += "<div class='top-bar'><h2>BMS-Logger</h2><span class='badge blue'>" + String(now.day(), DEC) + "." + String(now.month(), DEC) + "." + String(now.year(), DEC) + " &nbsp;" + String(now.hour(), DEC) + ":" + Minute + "</span></div>";
-  Content += "<div class='nav-bar'><a class='btn' href='/'>Aktualisieren</a><a class='btn' href='Listen'>Dateien</a><a class='btn' href='Setup'>Setup</a></div>";
+  Content += "<div class='nav-bar'><a class='btn' href='/'>Aktualisieren</a><a class='btn' href='Chart'>Diagramme</a><a class='btn' href='Listen'>Dateien</a><a class='btn' href='Setup'>Setup</a></div>";
 
   // System Info Card
   Content += "<div class='card'><h3>System Info</h3><table class='info-table'>";
@@ -503,4 +503,67 @@ void Reset()
 { Serial.println("R E S E T");
   delay(100);
   ESP.restart();
+}
+
+//-------------------------------------------------
+void ChartSeite() {
+  Content = "<!DOCTYPE html><html lang='de'><head><meta charset='UTF-8'>";
+  Content += getModernCSS();
+  Content += "<title>BMS Diagramme</title>";
+  Content += "<script src='https://cdn.jsdelivr.net/npm/chart.js'></script>";
+  Content += "<style>.chart-container{position:relative;height:300px;width:100%}</style>";
+  Content += "</head><body><div class='container'>";
+  Content += "<div class='top-bar'><h2>Diagramme</h2>";
+  Content += "<select id='bmsSelect' class='btn' style='background:#444; border:none; color:#fff; cursor:pointer;'></select>";
+  Content += "<a class='btn' href='/'>Zurück</a></div>";
+  Content += "<div class='card'><div class='chart-container'><canvas id='chartVoltage'></canvas></div></div>";
+  Content += "<div class='card'><div class='chart-container'><canvas id='chartCells'></canvas></div></div>";
+  Content += "<div class='card'><div class='chart-container'><canvas id='chartCurrent'></canvas></div></div>";
+  Content += "<div class='card'><div class='chart-container'><canvas id='chartCapacity'></canvas></div></div>";
+  
+  Content += "<script>";
+  Content += "let chartV, chartC, chartA, chartCap;";
+  Content += "let allData = {};";
+  Content += "fetch('/BMS_LOG.CSV').then(r => r.text()).then(csv => {";
+  Content += "  const rows = csv.trim().split('\\n').slice(1);";
+  Content += "  rows.forEach(r => {";
+  Content += "    const c = r.split(';');";
+  Content += "    if(c.length > 9) {";
+  Content += "      let bmsName = 'Alte Daten';";
+  Content += "      let offset = 0;";
+  Content += "      if(!c[0].includes('.')) { bmsName = c[0]; offset = 1; } else { offset = 0; }";
+  Content += "      if(!allData[bmsName]) allData[bmsName] = { labels:[], volts:[], amps:[], c1:[], c2:[], c3:[], c4:[], caps:[] };";
+  Content += "      const d = allData[bmsName];";
+  Content += "      d.labels.push(c[offset] + ' ' + c[offset+1]);";
+  Content += "      d.volts.push(parseFloat(c[offset+3].replace(',','.')));";
+  Content += "      d.amps.push(parseFloat(c[offset+4].replace(',','.')));";
+  Content += "      d.c1.push(parseFloat(c[offset+5].replace(',','.')));";
+  Content += "      d.c2.push(parseFloat(c[offset+6].replace(',','.')));";
+  Content += "      d.c3.push(parseFloat(c[offset+7].replace(',','.')));";
+  Content += "      d.c4.push(parseFloat(c[offset+8].replace(',','.')));";
+  Content += "      d.caps.push(parseFloat(c[offset+9].replace(',','.')));";
+  Content += "    }";
+  Content += "  });";
+  Content += "  const sel = document.getElementById('bmsSelect');";
+  Content += "  Object.keys(allData).forEach(k => { const opt = document.createElement('option'); opt.value = k; opt.textContent = k; sel.appendChild(opt); });";
+  Content += "  if(Object.keys(allData).length > 0) updateCharts(Object.keys(allData)[0]);";
+  Content += "  sel.addEventListener('change', (e) => updateCharts(e.target.value));";
+  Content += "});";
+  Content += "function updateCharts(bms) {";
+  Content += "  const d = allData[bms];";
+  Content += "  const config = (l, dat, lbl, col) => ({ type:'line', data:{ labels:l, datasets:[{ label:lbl, data:dat, borderColor:col, backgroundColor:col, tension:0.1, pointRadius:1 }] }, options:{responsive:true, maintainAspectRatio:false, animation:{duration:0}}});";
+  Content += "  const configCells = (l, d1, d2, d3, d4) => ({ type:'line', data:{ labels:l, datasets:[";
+  Content += "    { label:'Zelle 1', data:d1, borderColor:'#ff6384', backgroundColor:'#ff6384', tension:0.1, pointRadius:1 },";
+  Content += "    { label:'Zelle 2', data:d2, borderColor:'#36a2eb', backgroundColor:'#36a2eb', tension:0.1, pointRadius:1 },";
+  Content += "    { label:'Zelle 3', data:d3, borderColor:'#cc65fe', backgroundColor:'#cc65fe', tension:0.1, pointRadius:1 },";
+  Content += "    { label:'Zelle 4', data:d4, borderColor:'#ffce56', backgroundColor:'#ffce56', tension:0.1, pointRadius:1 }";
+  Content += "  ]}, options:{responsive:true, maintainAspectRatio:false, animation:{duration:0}}});";
+  Content += "  if(chartV) { chartV.destroy(); chartC.destroy(); chartA.destroy(); chartCap.destroy(); }";
+  Content += "  chartV = new Chart(document.getElementById('chartVoltage'), config(d.labels, d.volts, 'Gesamtspannung (V)', '#007bff'));";
+  Content += "  chartC = new Chart(document.getElementById('chartCells'), configCells(d.labels, d.c1, d.c2, d.c3, d.c4));";
+  Content += "  chartA = new Chart(document.getElementById('chartCurrent'), config(d.labels, d.amps, 'Strom (A)', '#28a745'));";
+  Content += "  chartCap = new Chart(document.getElementById('chartCapacity'), config(d.labels, d.caps, 'Restkapazität (Ah)', '#ffc107'));";
+  Content += "}";
+  Content += "</script></body></html>";
+  server.send(200, "text/html", Content);
 }
