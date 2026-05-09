@@ -474,20 +474,21 @@ String rTrim(String Str, uint8_t Laenge)                                        
 }
 // --------------------------------------------------------------------
 String getContentType(String filename) {                                                // ContentType für den Browser
-  if (filename.endsWith(".htm")) return "text/html";
-  else if (filename.endsWith(".html")) return "text/html";
-  else if (filename.endsWith(".css"))  return "text/css";
-  else if (filename.endsWith(".js"))   return "application/javascript";
-  else if (filename.endsWith(".png"))  return "image/png";
-  else if (filename.endsWith(".gif"))  return "image/gif";
-  else if (filename.endsWith(".jpg"))  return "image/jpeg";
-  else if (filename.endsWith(".ico"))  return "image/x-icon";
-  else if (filename.endsWith(".kml"))  return "application/googleearth.exe";
-  else if (filename.endsWith(".xml"))  return "text/xml";
-  else if (filename.endsWith(".csv"))  return "text/csv";
-  else if (filename.endsWith(".pdf"))  return "application/x-pdf";
-  else if (filename.endsWith(".zip"))  return "application/x-zip";
-  else if (filename.endsWith(".gz"))   return "application/x-gzip";
+  String fn = filename;
+  fn.toLowerCase();
+  if (fn.endsWith(".htm") || fn.endsWith(".html")) return "text/html";
+  else if (fn.endsWith(".css"))  return "text/css";
+  else if (fn.endsWith(".js"))   return "application/javascript";
+  else if (fn.endsWith(".png"))  return "image/png";
+  else if (fn.endsWith(".gif"))  return "image/gif";
+  else if (fn.endsWith(".jpg"))  return "image/jpeg";
+  else if (fn.endsWith(".ico"))  return "image/x-icon";
+  else if (fn.endsWith(".kml"))  return "application/googleearth.exe";
+  else if (fn.endsWith(".xml"))  return "text/xml";
+  else if (fn.endsWith(".csv"))  return "text/csv";
+  else if (fn.endsWith(".pdf"))  return "application/x-pdf";
+  else if (fn.endsWith(".zip"))  return "application/x-zip";
+  else if (fn.endsWith(".gz"))   return "application/x-gzip";
   return "text/plain";
 }
 
@@ -571,13 +572,13 @@ void ChartSeite()
           "      if(!allData[bmsName]) allData[bmsName] = { labels:[], volts:[], amps:[], c1:[], c2:[], c3:[], c4:[], caps:[] };\n"
           "      const d = allData[bmsName];\n"
           "      d.labels.push(c[2]);\n"
-          "      d.volts.push(parseFloat(c[4]));\n"
-          "      d.amps.push(parseFloat(c[5]));\n"
-          "      d.c1.push(parseFloat(c[6]));\n"
-          "      d.c2.push(parseFloat(c[7]));\n"
-          "      d.c3.push(parseFloat(c[8]));\n"
-          "      d.c4.push(parseFloat(c[9]));\n"
-          "      d.caps.push(parseFloat(c[3]));\n"
+          "      d.volts.push(parseFloat(c[4].replace(',', '.')));\n"
+          "      d.amps.push(parseFloat(c[5].replace(',', '.')));\n"
+          "      d.c1.push(parseFloat(c[6].replace(',', '.')));\n"
+          "      d.c2.push(parseFloat(c[7].replace(',', '.')));\n"
+          "      d.c3.push(parseFloat(c[8].replace(',', '.')));\n"
+          "      d.c4.push(parseFloat(c[9].replace(',', '.')));\n"
+          "      d.caps.push(parseFloat(c[3].replace(',', '.')));\n"
           "    }\n"
           "  });\n"
           "  const sel = document.getElementById('bmsSelect');\n"

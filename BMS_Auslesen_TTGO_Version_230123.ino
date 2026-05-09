@@ -425,9 +425,10 @@ void loop()
       tft.fillScreen(TFT_BLACK);
       Reset();
     }
-    delay(250);
+    delay(200);
     Variable_X++;
     Serial.println(Variable_X);
+    if (digitalRead(BUTTON_Mitte) != LOW) break;
   }
   if (Variable_X != 0) {
     tft.unloadFont();
@@ -468,11 +469,7 @@ void loop()
                           bitRead(packBasicInfo.MosfetStatus, 0));      // Setzte MOS_FET ein/aus
     }
     
-    delay(100);
-    while (digitalRead(BUTTON_Links) == LOW)
-    {
-      delay(100);
-    }
+    delay(200);
   }
 
   if (digitalRead(BUTTON_Rechts) == LOW)
@@ -544,8 +541,7 @@ void loop()
         force_battery_redraw = true;
     }
     
-    delay(100);
-    while (digitalRead(BUTTON_Rechts) == LOW) delay(100);
+    delay(200);
   }
 
   if (millis() - webServerLastActive > 1000) {
