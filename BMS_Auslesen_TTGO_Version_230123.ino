@@ -361,7 +361,7 @@ void setup()
     //    while (true) {}                                                  // Endlosschleife ohne BMS
   }
 
-  CSV_Titel = "Datum;Zeit;SOC [%];Uges [V];I [A];";
+  CSV_Titel = "Batterie;Datum;Zeit;SOC [%];Uges [V];I [A];";
   for (nX = 1; nX <= Anzahl_Zellen; nX++)
   {
     CSV_Titel = CSV_Titel + "Cell " + String(nX) + " [V];";
@@ -821,21 +821,18 @@ void loop()
           }
 
           now = myRTC.now();
-          sDatum_Zeit  = String(now.day(), DEC) + ".";
-          sDatum_Zeit += String(now.month(), DEC) + ".";
-          sDatum_Zeit += String(now.year(), DEC) + ";";               // ; wegen CSV
+          String sTag  = String(now.day(), DEC) + ".";
+          sTag += String(now.month(), DEC) + ".";
+          sTag += String(now.year(), DEC) + ";";
 
-          if (Datum_alt !=  sDatum_Zeit)                              // Datumswechsel
+          if (Datum_alt != sTag)                                      // Datumswechsel für EEPROM-Backup
           {
-            Serial.print("Datumswechsel ");
-            Datum_alt = sDatum_Zeit;
-            putEEprom(160, sDatum_Zeit);
-            Serial.println(sDatum_Zeit);
+            Datum_alt = sTag;
+            putEEprom(160, sTag);
+            EEPROM.commit();
           }
-          else
-          {
-            sDatum_Zeit = ";";
-          }
+
+          sDatum_Zeit = BT_Name + ";" + sTag;
           EEPROM.commit();                                            // EEPROM abschliessen
 
           sDatum_Zeit += String(now.hour(), DEC) + ":";
