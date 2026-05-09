@@ -102,10 +102,10 @@ String   sLogFileName = "Log.txt",
          sRestZeit    = "",
          ResetGrund   = "";
 
-bool     sdCardActive = false;                                       // Flag für SD-Karte
+bool     sdCardActive = false;                                       // Flag für SD-Karte (AKTUELL DEAKTIVIERT)
 int      lastLogMinute = -1;                                         // Merker für Intervall-Log
 
-SPIClass sdSPI(HSPI);                                                // Zweiter SPI Bus für SD-Karte (TTGO T4)
+// SPIClass sdSPI(HSPI);                                                // Deaktiviert wegen RAM-Mangel
 
 String   FehlerName[] = {"Zellen Ueberspannung", "Zellen Unterspannung",
                          "Batterie Ueberspannung", "Batterie-Unterspannung",
@@ -208,7 +208,7 @@ void setup()
 
   SPIFFS.begin(true);
 
-  // SD-Karte für LilyGO TTGO T4 (Pins: SCLK=14, MISO=2, MOSI=15, CS=13)
+  /* SD-Karte deaktiviert wegen Webserver-Problemen (RAM)
   sdSPI.begin(14, 2, 15, 13); 
   if (SD.begin(13, sdSPI)) {
     sdCardActive = true;
@@ -216,6 +216,8 @@ void setup()
   } else {
     Serial.println("TTGO T4 SD-Karte NICHT gefunden, nutze internen Speicher.");
   }
+  */
+  sdCardActive = false;
 
   pinMode(Backlight, OUTPUT);                                        // LED als Output definieren
   analogWrite(Backlight, 200);                                       // Helligkeit vorgeben
