@@ -130,6 +130,8 @@ void WLAN_Ein()
   }
   server.on("/", handleRoot);
   server.on("/Chart", ChartSeite);
+  server.on("/log_spiffs", logFromSpiffs);                                     // Diagramm-Quelle: nur ESP-Speicher
+  server.on("/log_sd",     logFromSd);                                         // Diagramm-Quelle: nur SD-Karte
   server.on("/format", formatSpeicher);
   server.on("/Setup",  SetUpDaten);                                            // Daten für das Beispiel xxx.xxx.xxx.xxx/Setup
   server.on("/Fehlerloeschen", Fehlerloeschen);

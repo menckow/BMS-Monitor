@@ -3,25 +3,50 @@
 //***************************************************
 String getModernCSS() {
   return "<style>"
-         "body{font-family:system-ui,-apple-system,sans-serif;background-color:#f4f7f6;color:#333;margin:0;padding:15px;line-height:1.5}"
+         "*{box-sizing:border-box}"
+         "body{font-family:system-ui,-apple-system,sans-serif;background:#f4f7f6;color:#333;margin:0;padding:15px;line-height:1.5}"
          ".container{max-width:800px;margin:0 auto}"
          "h2,h3{color:#2c3e50;margin-top:0}"
+         "h2{font-size:1.5em}h3{font-size:1.15em}"
          ".card{background:#fff;border-radius:12px;padding:20px;margin-bottom:20px;box-shadow:0 4px 6px rgba(0,0,0,0.05)}"
+         ".table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}"
          "table{width:100%;border-collapse:collapse;margin-bottom:10px}"
-         "td{padding:10px;border-bottom:1px solid #eee}"
+         "td{padding:10px;border-bottom:1px solid #eee;word-break:break-word}"
          "table.info-table td:first-child{color:#6c757d;font-weight:500;width:40%}"
-         ".badge{display:inline-block;padding:4px 8px;border-radius:12px;font-size:0.85em;font-weight:bold}"
+         ".badge{display:inline-block;padding:4px 8px;border-radius:12px;font-size:0.85em;font-weight:bold;white-space:nowrap}"
          ".badge.green{background:#d4edda;color:#155724}"
          ".badge.red{background:#f8d7da;color:#721c24}"
          ".badge.blue{background:#cce5ff;color:#004085}"
          ".badge.yellow{background:#fff3cd;color:#856404}"
-         ".btn{display:inline-block;padding:10px 20px;background:#007bff;color:#fff;text-decoration:none;border-radius:8px;border:none;cursor:pointer;font-size:1em;text-align:center;transition:0.2s}"
-         ".btn:hover{background:#0056b3}"
-         ".btn-danger{background:#dc3545}.btn-danger:hover{background:#c82333}"
+         ".btn{display:inline-block;padding:10px 18px;background:#007bff;color:#fff;text-decoration:none;border-radius:8px;border:none;cursor:pointer;font-size:1em;text-align:center;transition:0.2s;min-height:44px;line-height:1.2}"
+         ".btn:hover,.btn:active{background:#0056b3}"
+         ".btn-danger{background:#dc3545}.btn-danger:hover,.btn-danger:active{background:#c82333}"
          ".progress-container{width:100%;height:14px;background:#e9ecef;border-radius:7px;overflow:hidden;margin-top:4px}"
          ".progress-bar{height:100%;border-radius:7px;transition:width 0.5s ease-in-out}"
-         ".top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}"
+         ".top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}"
          ".nav-bar{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}"
+         "input[type=text],input[type=number],input[type=file],select{font-family:inherit;font-size:1em;padding:10px;border:1px solid #ccc;border-radius:6px;width:100%;max-width:100%}"
+         "form button[type=submit]{width:100%}"
+         /* === Mobile (Phones) === */
+         "@media (max-width:600px){"
+         "body{padding:8px;font-size:15px}"
+         ".card{padding:14px;margin-bottom:12px;border-radius:10px}"
+         "h2{font-size:1.25em}h3{font-size:1.05em}"
+         ".top-bar{flex-direction:column;align-items:stretch}"
+         ".top-bar h2{margin-bottom:0}"
+         ".nav-bar{display:grid;grid-template-columns:1fr 1fr;gap:8px}"
+         ".nav-bar .btn{padding:12px 8px;font-size:0.95em}"
+         ".btn{padding:12px 14px}"
+         "td{padding:8px 6px;font-size:0.95em}"
+         "table.info-table td:first-child{width:45%}"
+         /* FET-Steuerungs-Zellen umbrechen lassen statt zu engen 3-Spalten-Layout */
+         ".info-table tr td:nth-child(3) .btn{padding:8px 12px;font-size:0.9em;min-height:36px}"
+         ".date-inputs input{display:inline-block;width:auto !important;padding:8px;margin:2px}"
+         "}"
+         /* === Sehr kleine Geräte === */
+         "@media (max-width:380px){"
+         ".nav-bar{grid-template-columns:1fr}"
+         "}"
          "</style>";
 }
 
@@ -483,42 +508,57 @@ void ChartSeite()
   chunk += getModernCSS();
   chunk += "<script src='https://cdn.jsdelivr.net/npm/chart.js'></script></head><body><div class='container'>";
   chunk += "<div class='top-bar'><h2>Batterie Diagramme</h2>";
-  chunk += "<select id='bmsSelect' class='btn' style='background:#444; border:none; color:#fff; cursor:pointer; margin-right:10px'></select>";
-  chunk += "<a class='btn' href='/'>Zurück</a></div>";
+  chunk += "<select id='srcSelect' class='btn' style='background:#444;border:none;color:#fff;cursor:pointer;margin-right:10px'>";
+  chunk += "<option value='spiffs'>Quelle: ESP-Speicher</option>";
+  chunk += "<option value='sd'>Quelle: SD-Karte</option>";
+  chunk += "</select>";
+  chunk += "<select id='bmsSelect' class='btn' style='background:#444;border:none;color:#fff;cursor:pointer;margin-right:10px'></select>";
+  chunk += "<a class='btn' href='/'>Zurueck</a></div>";
   server.sendContent(chunk);
 
   chunk = "<div class='card' style='height:300px'><canvas id='chartVoltage'></canvas></div>";
   chunk += "<div class='card' style='height:300px'><canvas id='chartCells'></canvas></div>";
   chunk += "<div class='card' style='height:300px'><canvas id='chartCurrent'></canvas></div>";
   chunk += "<div class='card' style='height:300px'><canvas id='chartCapacity'></canvas></div>";
+  chunk += "<div id='loadInfo' style='text-align:center;color:#888;margin:10px'>Lade Daten...</div>";
   server.sendContent(chunk);
 
   chunk = "<script>\n"
           "let chartV, chartC, chartA, chartCap;\n"
           "let allData = {};\n"
-          "fetch('/BMS_LOG.CSV').then(r => r.text()).then(csv => {\n"
-          "  const rows = csv.trim().split('\\n').slice(1);\n"
-          "  rows.forEach(r => {\n"
-          "    const c = r.split(';');\n"
-          "    if(c.length > 9) {\n"
-          "      let bmsName = c[0] || 'Unbekannt';\n"
-          "      if(!allData[bmsName]) allData[bmsName] = { labels:[], volts:[], amps:[], c1:[], c2:[], c3:[], c4:[], caps:[] };\n"
-          "      const d = allData[bmsName];\n"
-          "      d.labels.push(c[2]);\n"
-          "      d.volts.push(parseFloat(c[4].replace(',', '.')));\n"
-          "      d.amps.push(parseFloat(c[5].replace(',', '.')));\n"
-          "      d.c1.push(parseFloat(c[6].replace(',', '.')));\n"
-          "      d.c2.push(parseFloat(c[7].replace(',', '.')));\n"
-          "      d.c3.push(parseFloat(c[8].replace(',', '.')));\n"
-          "      d.c4.push(parseFloat(c[9].replace(',', '.')));\n"
-          "      d.caps.push(parseFloat(c[3].replace(',', '.')));\n"
-          "    }\n"
-          "  });\n"
-          "  const sel = document.getElementById('bmsSelect');\n"
-          "  Object.keys(allData).forEach(k => { const opt = document.createElement('option'); opt.value = k; opt.textContent = k; sel.appendChild(opt); });\n"
-          "  if(Object.keys(allData).length > 0) updateCharts(Object.keys(allData)[0]);\n"
-          "  sel.onchange = (e) => updateCharts(e.target.value);\n"
-          "});\n";
+          "function loadData(src) {\n"
+          "  document.getElementById('loadInfo').textContent = 'Lade Daten von ' + (src==='sd'?'SD-Karte':'ESP-Speicher') + '...';\n"
+          "  const url = src === 'sd' ? '/log_sd' : '/log_spiffs';\n"
+          "  fetch(url).then(r => r.text()).then(csv => {\n"
+          "    allData = {};\n"
+          "    const rows = csv.trim().split('\\n').slice(1);\n"
+          "    rows.forEach(r => {\n"
+          "      const c = r.split(';');\n"
+          "      if(c.length > 9) {\n"
+          "        let bmsName = c[0] || 'Unbekannt';\n"
+          "        if(!allData[bmsName]) allData[bmsName] = { labels:[], volts:[], amps:[], c1:[], c2:[], c3:[], c4:[], caps:[] };\n"
+          "        const d = allData[bmsName];\n"
+          "        d.labels.push(c[2]);\n"
+          "        d.volts.push(parseFloat(c[4].replace(',', '.')));\n"
+          "        d.amps.push(parseFloat(c[5].replace(',', '.')));\n"
+          "        d.c1.push(parseFloat(c[6].replace(',', '.')));\n"
+          "        d.c2.push(parseFloat(c[7].replace(',', '.')));\n"
+          "        d.c3.push(parseFloat(c[8].replace(',', '.')));\n"
+          "        d.c4.push(parseFloat(c[9].replace(',', '.')));\n"
+          "        d.caps.push(parseFloat(c[3].replace(',', '.')));\n"
+          "      }\n"
+          "    });\n"
+          "    const sel = document.getElementById('bmsSelect');\n"
+          "    sel.innerHTML='';\n"
+          "    Object.keys(allData).forEach(k => { const opt = document.createElement('option'); opt.value = k; opt.textContent = k; sel.appendChild(opt); });\n"
+          "    document.getElementById('loadInfo').textContent = rows.length + ' Datenpunkte geladen';\n"
+          "    if(Object.keys(allData).length > 0) updateCharts(Object.keys(allData)[0]);\n"
+          "    else { document.getElementById('loadInfo').textContent = 'Keine Daten in dieser Quelle.'; }\n"
+          "    sel.onchange = (e) => updateCharts(e.target.value);\n"
+          "  }).catch(e => { document.getElementById('loadInfo').textContent = 'Fehler: ' + e; });\n"
+          "}\n"
+          "document.getElementById('srcSelect').onchange = (e) => loadData(e.target.value);\n"
+          "loadData('spiffs');\n";
   server.sendContent(chunk);
 
   chunk = "function updateCharts(bms) {\n"

@@ -1,7 +1,7 @@
 // SD-Karte on-demand mounten — gibt ~20 KB Heap frei wenn nicht aktiv genutzt.
 // Damit bleibt genug Heap für stabilen Webserver-/WiFi-Betrieb.
 
-#define BUFFER_FLUSH_THRESHOLD 50000                                 // SPIFFS-Buffer auf SD flushen ab ~50 KB
+#define FLUSH_PERCENT 90                                             // Flush wenn SPIFFS zu 90% voll
 #define LOG_FILENAME "/BMS_LOG.CSV"
 
 bool sdMount() {
@@ -120,14 +120,13 @@ String schreibeDatei(String Text, String filename, bool Flag)                   
     sFile.close();
   }
 
-  // Ist die Logdatei groß genug für einen Flush auf SD?
+  // SPIFFS zu voll? Dann Logdatei auf SD verschieben um Platz zu schaffen.
   // Nicht während aktiver Webserver-Verbindung (dann hat WiFi Vorrang).
   if (sFileName == LOG_FILENAME && sdCardPresent) {
-    File f = SPIFFS.open(LOG_FILENAME, "r");
-    size_t sz = f ? f.size() : 0;
-    if (f) f.close();
-
-    if (sz >= BUFFER_FLUSH_THRESHOLD && (millis() - webServerLastActive > 5000)) {
+    size_t threshold = (SPIFFS.totalBytes() * FLUSH_PERCENT) / 100;
+    if (SPIFFS.usedBytes() >= threshold && (millis() - webServerLastActive > 5000)) {
+      Serial.println("[FLUSH] SPIFFS bei " + String((SPIFFS.usedBytes() * 100) / SPIFFS.totalBytes())
+                     + "% (" + String(SPIFFS.usedBytes()) + "/" + String(SPIFFS.totalBytes()) + ") -> Flush");
       flushBufferToSD();
     }
   }
@@ -218,3 +217,36 @@ void formatSpeicher() {
 
 size_t getFSTotalBytes() { return SPIFFS.totalBytes(); }
 size_t getFSUsedBytes()  { return SPIFFS.usedBytes(); }
+
+//-------------------------------------------------
+// Direkter Zugriff auf die Logdatei im SPIFFS (ohne Flush, ohne SD-Mount)
+void logFromSpiffs() {
+  Serial.println("Log SPIFFS - Anfrage");
+  if (SPIFFS.exists(LOG_FILENAME)) {
+    File f = SPIFFS.open(LOG_FILENAME, "r");
+    server.streamFile(f, "text/csv");
+    f.close();
+  } else {
+    server.send(200, "text/csv", CSV_Titel);                         // nur Header (leerer Buffer)
+  }
+  webServerLastActive = millis();
+}
+
+// Direkter Zugriff auf die Logdatei auf der SD-Karte (ohne vorherigen Flush)
+void logFromSd() {
+  Serial.println("Log SD - Anfrage");
+  if (sdCardPresent && sdMount()) {
+    if (SD.exists(LOG_FILENAME)) {
+      File f = SD.open(LOG_FILENAME, "r");
+      webServerLastActive = millis();
+      Serial.println("[SD] Stream Logdatei (" + String(f.size()) + " Byte) - BLE pausiert");
+      server.streamFile(f, "text/csv");
+      f.close();
+      sdUnmount();
+      return;
+    }
+    sdUnmount();
+  }
+  server.send(200, "text/csv", CSV_Titel);                           // nichts auf SD
+  webServerLastActive = millis();
+}
