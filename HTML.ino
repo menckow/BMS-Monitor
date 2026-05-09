@@ -61,44 +61,53 @@ void mache_HTML_Seite()                                                        /
 
   if (aktuell_Strom == 0) sRestZeit    = "";
 
-  Content = "<!DOCTYPE html>\n<html lang='de'>\n<head><meta charset='UTF-8'>"
-            "<link rel=\"icon\" type=\"image/vnd.microsoft.icon\" href=\"favicon.ico\">"
-            "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
-            "<meta http-equiv='refresh' content='60'>"
-            "<title>BMS-Logger</title>";
-  Content += getModernCSS();
-  Content += "<script>window.history.pushState({}, document.title, window.location.pathname);</script></head><body><div class='container'>";
+  // HTTP-Antwort starten (Streaming-Modus)
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.send(200, "text/html", "");
+
+  String chunk;
+  chunk = "<!DOCTYPE html>\n<html lang='de'>\n<head><meta charset='UTF-8'>"
+          "<link rel=\"icon\" type=\"image/vnd.microsoft.icon\" href=\"favicon.ico\">"
+          "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
+          "<meta http-equiv='refresh' content='60'>"
+          "<title>BMS-Logger</title>";
+  chunk += getModernCSS();
+  chunk += "<script>window.history.pushState({}, document.title, window.location.pathname);</script></head><body><div class='container'>";
+  server.sendContent(chunk);
   
   // Header / Navigation
-  Content += "<div class='top-bar'><h2>BMS-Logger</h2><span class='badge blue'>" + String(now.day(), DEC) + "." + String(now.month(), DEC) + "." + String(now.year(), DEC) + " &nbsp;" + String(now.hour(), DEC) + ":" + Minute + "</span></div>";
-  Content += "<div class='nav-bar'><a class='btn' href='/'>Aktualisieren</a><a class='btn' href='Chart'>Diagramme</a><a class='btn' href='Listen'>Dateien</a><a class='btn' href='Setup'>Setup</a></div>";
+  chunk = "<div class='top-bar'><h2>BMS-Logger</h2><span class='badge blue'>" + String(now.day(), DEC) + "." + String(now.month(), DEC) + "." + String(now.year(), DEC) + " &nbsp;" + String(now.hour(), DEC) + ":" + Minute + "</span></div>";
+  chunk += "<div class='nav-bar'><a class='btn' href='/'>Aktualisieren</a><a class='btn' href='Chart'>Diagramme</a><a class='btn' href='Listen'>Dateien</a><a class='btn' href='Setup'>Setup</a></div>";
+  server.sendContent(chunk);
 
   // System Info Card
-  Content += "<div class='card'><h3>System Info</h3><table class='info-table'>";
-  Content += "<tr><td>Läuft seit</td><td>" + bootZeit + "</td></tr>";
-  Content += "<tr><td>BT Name</td><td>" + BT_Name + "</td></tr>";
-  Content += "<tr><td>BMS Typ</td><td>" + packVersionsInfo.sBMSTyp + "</td></tr>";
-  Content += "<tr><td>BMS Version</td><td>0x" + String(packBasicInfo.BMS_Version, HEX) + "</td></tr>";
-  Content += "<tr><td>Anzahl Zyklen</td><td>" + String(Anzahl_Zyklen) + "</td></tr>";
-  Content += "</table></div>";
+  chunk = "<div class='card'><h3>System Info</h3><table class='info-table'>";
+  chunk += "<tr><td>Läuft seit</td><td>" + bootZeit + "</td></tr>";
+  chunk += "<tr><td>BT Name</td><td>" + BT_Name + "</td></tr>";
+  chunk += "<tr><td>BMS Typ</td><td>" + packVersionsInfo.sBMSTyp + "</td></tr>";
+  chunk += "<tr><td>BMS Version</td><td>0x" + String(packBasicInfo.BMS_Version, HEX) + "</td></tr>";
+  chunk += "<tr><td>Anzahl Zyklen</td><td>" + String(Anzahl_Zyklen) + "</td></tr>";
+  chunk += "</table></div>";
+  server.sendContent(chunk);
 
   // Battery Status Card
-  Content += "<div class='card'><h3>Batterie Status</h3><table class='info-table'>";
-  Content += "<tr><td>Ladezustand</td><td><b>" + String(aktuell_Ladezustand) + " %</b></td></tr>";
-  Content += "<tr><td>Gesamtspannung</td><td><b>" + String(aktuell_Spannung, 3) + " V</b></td></tr>";
-  Content += "<tr><td>Strom</td><td>" + String(aktuell_Strom) + " A</td></tr>";
-  Content += "<tr><td>Leistung</td><td>" + String(packBasicInfo.Watts) + " W</td></tr>";
-  Content += "<tr><td>Restkapazität</td><td>" + String(RestLadung) + " Ah / " + String(balance_Capacity) + " Ah</td></tr>";
+  chunk = "<div class='card'><h3>Batterie Status</h3><table class='info-table'>";
+  chunk += "<tr><td>Ladezustand</td><td><b>" + String(aktuell_Ladezustand) + " %</b></td></tr>";
+  chunk += "<tr><td>Gesamtspannung</td><td><b>" + String(aktuell_Spannung, 3) + " V</b></td></tr>";
+  chunk += "<tr><td>Strom</td><td>" + String(aktuell_Strom) + " A</td></tr>";
+  chunk += "<tr><td>Leistung</td><td>" + String(packBasicInfo.Watts) + " W</td></tr>";
+  chunk += "<tr><td>Restkapazität</td><td>" + String(RestLadung) + " Ah / " + String(balance_Capacity) + " Ah</td></tr>";
   if (aktuell_Strom != 0) {
-    Content += "<tr><td>" + Hinweis + "</td><td>" + sRestZeit + "</td></tr>";
+    chunk += "<tr><td>" + Hinweis + "</td><td>" + sRestZeit + "</td></tr>";
   }
   
-  Content += "<tr><td>NTC's (Temperaturen)</td><td>";
-  Content += String(packBasicInfo.Temp1 / 10.0, 1) + " &deg;C, " + String(packBasicInfo.Temp2 / 10.0, 1) + " &deg;C</td></tr>";
-  Content += "</table></div>";
+  chunk += "<tr><td>NTC's (Temperaturen)</td><td>";
+  chunk += String(packBasicInfo.Temp1 / 10.0, 1) + " &deg;C, " + String(packBasicInfo.Temp2 / 10.0, 1) + " &deg;C</td></tr>";
+  chunk += "</table></div>";
+  server.sendContent(chunk);
 
   // Cell Info Card mit Bar-Charts
-  Content += "<div class='card'><h3>Zellen</h3>";
+  chunk = "<div class='card'><h3>Zellen Info</h3>";
   
   float maxVal = 0, minVal = 5000;
   uint8_t minZelle = 0, maxZelle = 0;
@@ -107,13 +116,13 @@ void mache_HTML_Seite()                                                        /
     if (packCellInfo.CellVolt[i] < minVal) { minVal = packCellInfo.CellVolt[i]; minZelle = i + 1; }
   }
 
-  Content += "<p style='margin-top:0'>Zellendifferenz (" + String(maxZelle) + " - " + String(minZelle) + "): <b>" + String((maxVal - minVal), 0) + " mV</b></p>";
-  
-  Content += "<table style='width:100%'>";
+  chunk += "<p style='margin-top:0'>Zellendifferenz (" + String(maxZelle) + " - " + String(minZelle) + "): <b>" + String((maxVal - minVal), 0) + " mV</b></p>";
+  chunk += "<table style='width:100%'>";
+  server.sendContent(chunk);
+  chunk = "";
+
   for (uint8_t i = 0; i < Anzahl_Zellen; i++) {
     float v = packCellInfo.CellVolt[i] / 1000.0;
-    
-    // Fortschrittsbalken-Farbe // LiFePO4: 2.8 bis 3.6, LiIon: 3.0 bis 4.2
     int pct = int((v - 2.8) / (4.2 - 2.8) * 100.0);
     if(pct < 0) pct = 0; if(pct > 100) pct = 100;
     
@@ -121,18 +130,19 @@ void mache_HTML_Seite()                                                        /
     if(v < 3.0) pColor = "#dc3545"; // red
     else if(v < 3.2) pColor = "#ffc107"; // yellow
 
-    Content += "<tr><td style='width:20%;font-weight:bold'>C" + String(i + 1);
-    if(bitRead(packBasicInfo.BalanceCodeLow, i)) Content += " <span style='color:#007bff;font-size:1.2em' title='Balancing aktiv'>*</span>";
-    Content += "</td>";
-    Content += "<td style='width:25%'>" + String(v, 3) + " V</td>";
-    Content += "<td style='width:55%'><div class='progress-container'><div class='progress-bar' style='width:" + String(pct) + "%;background-color:" + pColor + "'></div></div></td></tr>";
+    chunk += "<tr><td style='width:20%;font-weight:bold'>C" + String(i + 1);
+    if(bitRead(packBasicInfo.BalanceCodeLow, i)) chunk += " <span style='color:#007bff;font-size:1.2em' title='Balancing aktiv'>*</span>";
+    chunk += "</td>";
+    chunk += "<td style='width:25%'>" + String(v, 3) + " V</td>";
+    chunk += "<td style='width:55%'><div class='progress-container'><div class='progress-bar' style='width:" + String(pct) + "%;background-color:" + pColor + "'></div></div></td></tr>";
+    
+    if (chunk.length() > 500) { server.sendContent(chunk); chunk = ""; }
   }
-  Content += "</table></div>";
+  chunk += "</table></div>";
+  server.sendContent(chunk);
 
   // FET Control Card
-  Content += "<div class='card'><h3>System Steuerung</h3><table class='info-table'>";
-  
-  // Berechnung zum Umschalten der FETs (exakte Kopie alte Logik)
+  chunk = "<div class='card'><h3>System Steuerung</h3><table class='info-table'>";
   int currentDis = bitRead(packBasicInfo.MosfetStatus, 1);
   int currentChg = bitRead(packBasicInfo.MosfetStatus, 0);
   int Discharge = (!currentDis) + (currentChg * 2);
@@ -141,17 +151,17 @@ void mache_HTML_Seite()                                                        /
   String disHtml = currentDis ? "<span class='badge green'>AN</span>" : "<span class='badge red'>AUS</span>";
   String chgHtml = currentChg ? "<span class='badge green'>AN</span>" : "<span class='badge red'>AUS</span>";
 
-  Content += "<tr><td>Entlade-FET</td><td>" + disHtml + "</td><td style='text-align:right'><a class='btn' href='/?SetzeMosFet=" + String(Discharge) + "'>Umschalten</a></td></tr>";
-  Content += "<tr><td>Lade-FET</td><td>" + chgHtml + "</td><td style='text-align:right'><a class='btn' href='/?SetzeMosFet=" + String(Charge) + "'>Umschalten</a></td></tr>";
+  chunk += "<tr><td>Entlade-FET</td><td>" + disHtml + "</td><td style='text-align:right'><a class='btn' href='/?SetzeMosFet=" + String(Discharge) + "'>Umschalten</a></td></tr>";
+  chunk += "<tr><td>Lade-FET</td><td>" + chgHtml + "</td><td style='text-align:right'><a class='btn' href='/?SetzeMosFet=" + String(Charge) + "'>Umschalten</a></td></tr>";
   
   if (packBasicInfo.ProtectionStatus != 0) {
-    Content += "<tr><td style='color:#dc3545'><b>Fehlermeldungen!</b></td><td><span class='badge red'>Aktiv</span></td><td style='text-align:right'><a class='btn btn-danger' href='/StatusAbfrage'>Anzeigen</a></td></tr>";
+    chunk += "<tr><td style='color:#dc3545'><b>Fehlermeldungen!</b></td><td><span class='badge red'>Aktiv</span></td><td style='text-align:right'><a class='btn btn-danger' href='/StatusAbfrage'>Anzeigen</a></td></tr>";
   } else {
-    Content += "<tr><td>System Status</td><td colspan='2'><span class='badge green'>OK</span></td></tr>";
+    chunk += "<tr><td>System Status</td><td colspan='2'><span class='badge green'>OK</span></td></tr>";
   }
 
-  Content += "</table></div>";
-  Content += "</div></body></html>\r\n";
+  chunk += "</table></div></div></body></html>\r\n";
+  server.sendContent(chunk);
 }
 
 //----------------------------------------------------
@@ -190,7 +200,8 @@ void handleRoot()                                                               
   
   Serial.println("HTML - Anfrage Root");
 
-  server.send(200, "text/html", Content);
+  mache_HTML_Seite();                                                         // Jetzt wird gestreamt!
+  
   if (Screensaver >= 600)                                                   // Bildschirm schonen xx Sek.
   {
     tft.fillScreen(TFT_BLACK);
@@ -201,20 +212,22 @@ void handleRoot()                                                               
 //----------------------------------------------------
 void Listen()                                                                       // Listen downloaden
 {
-  Serial.println();
   Serial.println("Listen - Anfrage");
 
-  uint16_t nAnzahl = 0;                                                             // Anzahl der Einträge im Array
-  String Content;
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.send(200, "text/html", "");
 
-  Content = "<!DOCTYPE html>\n<html lang='de'>\n<head><meta charset='UTF-8'>"
-            "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
-            "<title>BMS-Dateimanager</title>";
-  Content += getModernCSS();
-  Content += "<script>function janein(text){return confirm(text);}</script></head><body><div class='container'>\n"
-             "<script>window.history.pushState({}, document.title, window.location.pathname);</script>";
-             
-  Content += "<div class='top-bar'><h2>Dateimanager</h2><a class='btn' href='/'>Zurück</a></div>";
+  uint16_t nAnzahl = 0;                                                             // Anzahl der Einträge im Array
+  String chunk;
+
+  chunk = "<!DOCTYPE html>\n<html lang='de'>\n<head><meta charset='UTF-8'>"
+          "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
+          "<title>BMS-Dateimanager</title>";
+  chunk += getModernCSS();
+  chunk += "<script>function janein(text){return confirm(text);}</script></head><body><div class='container'>\n"
+           "<script>window.history.pushState({}, document.title, window.location.pathname);</script>";
+  chunk += "<div class='top-bar'><h2>Dateimanager</h2><a class='btn' href='/'>Zurück</a></div>";
+  server.sendContent(chunk);
 
   File root = getFS().open("/");                                                      // Aktuell im Speicher vorhandenen Dateien
   File file = root.openNextFile();
@@ -247,18 +260,19 @@ void Listen()                                                                   
     bsort(sArr, nAnzahl, false);                                                     // Array sortieren, Groß- und Kleinschreibung egal
     root.close();
 
-    Content += "<div class='card'><h3>" + String(sdCardActive ? "SD Karte" : "SPIFFS Speicher") + "</h3>";
-    Content += "<p>Belegt: <b>" + formatBytes(getFSUsedBytes()) + "</b> / " + formatBytes(getFSTotalBytes()) + "</p>";
+    chunk = "<div class='card'><h3>" + String(sdCardActive ? "SD Karte" : "SPIFFS Speicher") + "</h3>";
+    chunk += "<p>Belegt: <b>" + formatBytes(getFSUsedBytes()) + "</b> / " + formatBytes(getFSTotalBytes()) + "</p>";
     
     int spiffsPct = (getFSTotalBytes() > 0) ? (getFSUsedBytes() * 100) / getFSTotalBytes() : 0;
-    Content += "<div class='progress-container' style='margin-bottom:15px'><div class='progress-bar' style='width:" + String(spiffsPct) + "%;background-color:#007bff'></div></div>";
+    chunk += "<div class='progress-container' style='margin-bottom:15px'><div class='progress-bar' style='width:" + String(spiffsPct) + "%;background-color:#007bff'></div></div>";
     
     if (!sdCardActive) {
-        Content += "<form method='POST' action='/format'><input type='submit' value='Speicher Formatieren' class='btn btn-danger' onclick=\"return janein('Wirklich formatieren? Alle Daten gehen restlos verloren!')\"></form>";
+        chunk += "<form method='POST' action='/format'><input type='submit' value='Speicher Formatieren' class='btn btn-danger' onclick=\"return janein('Wirklich formatieren? Alle Daten gehen restlos verloren!')\"></form>";
     }
-    Content += "</div>";
+    chunk += "</div>";
+    server.sendContent(chunk);
 
-    Content += "<div class='card'><table class='info-table'>";
+    chunk = "<div class='card'><table class='info-table'>";
     for (uint16_t i = 0; i < nAnzahl; i++)                                           // HTML-Liste aufbauen
     {
       sTemp = sArr[i];
@@ -266,78 +280,76 @@ void Listen()                                                                   
       String   sSize = sTemp.substring(sTemp.indexOf("#") + 1);
       uint32_t iSize = sSize.toInt();
       
-      Content += "<tr><td style='font-family:monospace;width:50%'><a style='text-decoration:none;' href='" + sName + "' download>" + sName + "</a></td>";
-      Content += "<td>" + formatBytes(iSize) + "</td>";
-      Content += "<td><a class='btn btn-danger' style='padding:6px 12px;font-size:0.85em' href='Loeschen?File=" + sName + "' onclick=\"return janein('" + sName + " wirklich löschen?')\">Löschen</a></td></tr>";
+      chunk += "<tr><td style='font-family:monospace;width:50%'><a style='text-decoration:none;' href='" + sName + "' download>" + sName + "</a></td>";
+      chunk += "<td>" + formatBytes(iSize) + "</td>";
+      chunk += "<td><a class='btn btn-danger' style='padding:6px 12px;font-size:0.85em' href='Loeschen?File=" + sName + "' onclick=\"return janein('" + sName + " wirklich löschen?')\">Löschen</a></td></tr>";
+      
+      if (chunk.length() > 1000) { server.sendContent(chunk); chunk = ""; }
     }
-    Content += "</table></div>";
-    delete sArr;                                                                      // Speicher des Arrays freigeben !!!
+    chunk += "</table></div>";
+    server.sendContent(chunk);
+    
+    delete[] sArr;                                                                    // Speicher des Arrays freigeben !!!
   }
 
-  // Speicher Info
-  Content += "<div class='card'><h3>SPIFFS Speicher</h3>";
-  Content += "<p>Belegt: <b>" + formatBytes(SPIFFS.usedBytes()) + "</b> / " + formatBytes(SPIFFS.totalBytes()) + "</p>";
-  
-  int spiffsPct = (SPIFFS.totalBytes() > 0) ? (SPIFFS.usedBytes() * 100) / SPIFFS.totalBytes() : 0;
-  Content += "<div class='progress-container' style='margin-bottom:15px'><div class='progress-bar' style='width:" + String(spiffsPct) + "%;background-color:#007bff'></div></div>";
-  
-  Content += "<form method='POST' action='/format'><input type='submit' value='Speicher Formatieren' class='btn btn-danger' onclick=\"return janein('Wirklich formatieren? Alle Daten gehen restlos verloren!')\"></form>";
-  Content += "</div>";
-
   // Datei Hochladen
-  Content += "<div class='card'><h3>Datei hochladen</h3>";
-  Content += "<form method='POST' action='/upload' enctype='multipart/form-data'>";
-  Content += "<div style='display:flex;gap:10px;align-items:center'><input type='file' name='upload' style='font-family:inherit' required>";
-  Content += "<input type='submit' value='Upload' class='btn'></div></form></div>";
-
-  Content += "</div></body></html>\r\n";
-  server.send(200, "text/html", Content);
+  chunk = "<div class='card'><h3>Datei hochladen</h3>";
+  chunk += "<form method='POST' action='/upload' enctype='multipart/form-data'>";
+  chunk += "<div style='display:flex;gap:10px;align-items:center'><input type='file' name='upload' style='font-family:inherit' required>";
+  chunk += "<input type='submit' value='Upload' class='btn'></div></form></div>";
+  chunk += "</div></body></html>\n";
+  server.sendContent(chunk);
+  server.sendContent("");
 }
 
 //----------------------------------------------------
 void StatusAbfrage()                                                                  // FehlerStatus
 {
-  Serial.println();
   Serial.println("Status - Anfrage");
 
-  String Content = "";                                                                // für die HTML-Seite
-  String sUE = String(char(154));                                                     // ü via special ASCII mapping, or just &Uuml;
-  sUE = "&Uuml;";                                                                     // Use HTML Entity!
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.send(200, "text/html", "");
 
-  Content = "<!DOCTYPE html>\n<html lang='de'>\n<head><meta charset='UTF-8'>"
-            "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
-            "<title>BMS-Status</title>";
-  Content += getModernCSS();
-  Content += "<script>function janein(text) {return confirm(text);}</script></head><body><div class='container'>";
-  Content += "<div class='top-bar'><h2>Fehlermeldungen</h2><a class='btn' href='/'>Zurück</a></div>";
+  String sUE = "&Uuml;";
+  String chunk;
 
-  Content += "<div class='card'><table class='info-table'>";
+  chunk = "<!DOCTYPE html>\n<html lang='de'>\n<head><meta charset='UTF-8'>"
+          "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
+          "<title>BMS-Status</title>";
+  chunk += getModernCSS();
+  chunk += "<script>function janein(text) {return confirm(text);}</script></head><body><div class='container'>";
+  chunk += "<div class='top-bar'><h2>Fehlermeldungen</h2><a class='btn' href='/'>Zurück</a></div>";
+  chunk += "<div class='card'><table class='info-table'>";
+  server.sendContent(chunk);
 
   if (packBasicInfo.ProtectionStatus == 0)
   {
-    Content += "<tr><td>Status</td><td style='text-align:right'><span class='badge green'>KEINE FEHLER</span></td></tr>";
+    server.sendContent("<tr><td>Status</td><td style='text-align:right'><span class='badge green'>KEINE FEHLER</span></td></tr>");
   }
   else 
   {
-    if (bitRead(packBasicInfo.ProtectionStatus, 0)) Content += "<tr><td>Zellen-" + sUE + "berspannung</td><td style='text-align:right'><span class='badge red'>Aktiv</span></td></tr>";
-    if (bitRead(packBasicInfo.ProtectionStatus, 1)) Content += "<tr><td>Zellen-Unterspannung</td><td style='text-align:right'><span class='badge red'>Aktiv</span></td></tr>";
-    if (bitRead(packBasicInfo.ProtectionStatus, 2)) Content += "<tr><td>Batterie-" + sUE + "berspannung</td><td style='text-align:right'><span class='badge red'>Aktiv</span></td></tr>";
-    if (bitRead(packBasicInfo.ProtectionStatus, 3)) Content += "<tr><td>Batterie-Unterspannung</td><td style='text-align:right'><span class='badge red'>Aktiv</span></td></tr>";
+    chunk = "";
+    if (bitRead(packBasicInfo.ProtectionStatus, 0)) chunk += "<tr><td>Zellen-" + sUE + "berspannung</td><td style='text-align:right'><span class='badge red'>Aktiv</span></td></tr>";
+    if (bitRead(packBasicInfo.ProtectionStatus, 1)) chunk += "<tr><td>Zellen-Unterspannung</td><td style='text-align:right'><span class='badge red'>Aktiv</span></td></tr>";
+    if (bitRead(packBasicInfo.ProtectionStatus, 2)) chunk += "<tr><td>Batterie-" + sUE + "berspannung</td><td style='text-align:right'><span class='badge red'>Aktiv</span></td></tr>";
+    if (bitRead(packBasicInfo.ProtectionStatus, 3)) chunk += "<tr><td>Batterie-Unterspannung</td><td style='text-align:right'><span class='badge red'>Aktiv</span></td></tr>";
+    if (bitRead(packBasicInfo.ProtectionStatus, 4)) chunk += "<tr><td>Laden " + sUE + "bertemperatur</td><td style='text-align:right'><span class='badge red'>Aktiv</span></td></tr>";
+    if (bitRead(packBasicInfo.ProtectionStatus, 5)) chunk += "<tr><td>Laden Untertemperatur</td><td style='text-align:right'><span class='badge red'>Aktiv</span></td></tr>";
+    if (bitRead(packBasicInfo.ProtectionStatus, 6)) chunk += "<tr><td>Entladen " + sUE + "bertemperatur</td><td style='text-align:right'><span class='badge red'>Aktiv</span></td></tr>";
+    if (bitRead(packBasicInfo.ProtectionStatus, 7)) chunk += "<tr><td>Entladen Untertemperatur</td><td style='text-align:right'><span class='badge red'>Aktiv</span></td></tr>";
+    server.sendContent(chunk);
 
-    if (bitRead(packBasicInfo.ProtectionStatus, 4)) Content += "<tr><td>Laden " + sUE + "bertemperatur</td><td style='text-align:right'><span class='badge red'>Aktiv</span></td></tr>";
-    if (bitRead(packBasicInfo.ProtectionStatus, 5)) Content += "<tr><td>Laden Untertemperatur</td><td style='text-align:right'><span class='badge red'>Aktiv</span></td></tr>";
-    if (bitRead(packBasicInfo.ProtectionStatus, 6)) Content += "<tr><td>Entladen " + sUE + "bertemperatur</td><td style='text-align:right'><span class='badge red'>Aktiv</span></td></tr>";
-    if (bitRead(packBasicInfo.ProtectionStatus, 7)) Content += "<tr><td>Entladen Untertemperatur</td><td style='text-align:right'><span class='badge red'>Aktiv</span></td></tr>";
-
-    if (bitRead(packBasicInfo.ProtectionStatus, 8)) Content += "<tr><td>Laden " + sUE + "berstrom</td><td style='text-align:right'><span class='badge red'>Aktiv</span></td></tr>";
-    if (bitRead(packBasicInfo.ProtectionStatus, 9)) Content += "<tr><td>Entladen " + sUE + "berstrom</td><td style='text-align:right'><span class='badge red'>Aktiv</span></td></tr>";
-    if (bitRead(packBasicInfo.ProtectionStatus, 10)) Content += "<tr><td>Kurzschluss</td><td style='text-align:right'><span class='badge red'>Aktiv</span></td></tr>";
-    if (bitRead(packBasicInfo.ProtectionStatus, 11)) Content += "<tr><td>IC Fehler</td><td style='text-align:right'><span class='badge red'>Aktiv</span></td></tr>";
-    if (bitRead(packBasicInfo.ProtectionStatus, 12)) Content += "<tr><td>MOS-Software Lock-in</td><td style='text-align:right'><span class='badge red'>Aktiv</span></td></tr>";
+    chunk = "";
+    if (bitRead(packBasicInfo.ProtectionStatus, 8)) chunk += "<tr><td>Laden " + sUE + "berstrom</td><td style='text-align:right'><span class='badge red'>Aktiv</span></td></tr>";
+    if (bitRead(packBasicInfo.ProtectionStatus, 9)) chunk += "<tr><td>Entladen " + sUE + "berstrom</td><td style='text-align:right'><span class='badge red'>Aktiv</span></td></tr>";
+    if (bitRead(packBasicInfo.ProtectionStatus, 10)) chunk += "<tr><td>Kurzschluss</td><td style='text-align:right'><span class='badge red'>Aktiv</span></td></tr>";
+    if (bitRead(packBasicInfo.ProtectionStatus, 11)) chunk += "<tr><td>IC Fehler</td><td style='text-align:right'><span class='badge red'>Aktiv</span></td></tr>";
+    if (bitRead(packBasicInfo.ProtectionStatus, 12)) chunk += "<tr><td>MOS-Software Lock-in</td><td style='text-align:right'><span class='badge red'>Aktiv</span></td></tr>";
+    server.sendContent(chunk);
   }
 
-  Content += "</table></div></div></body></html>\n";
-  server.send(200, "text/html", Content);                                             // und weg damit
+  server.sendContent("</table></div></div></body></html>\n");
+  server.sendContent(""); // Ende
 
   Serial.println();
   delay(1000);
@@ -346,14 +358,11 @@ void StatusAbfrage()                                                            
 //----------------------------------------------------
 void SetUpDaten()                                                                     // HTML-Setup-Seite
 {
-  Serial.println();
   Serial.println("Setup - Anfrage");
 
   DateTime now = myRTC.now();
-  String Content = "";
-
-  uint16_t intYear;
-  uint8_t  intMonth, intDay, intHour, intMinute;
+  uint16_t intYear = now.year();
+  uint8_t  intMonth = now.month(), intDay = now.day(), intHour = now.hour(), intMinute = now.minute();
 
   if (server.args() != 0)
   {
@@ -371,60 +380,64 @@ void SetUpDaten()                                                               
       if (server.argName(i) == "DAY")     intDay    = server.arg(i).toInt();
       if (server.argName(i) == "Stunden") intHour   = server.arg(i).toInt();
       if (server.argName(i) == "Minuten") intMinute = server.arg(i).toInt();
-
-      Serial.print(server.argName(i) + ": ");
-      Serial.println(server.arg(i));
     }
 
     EEPROM.commit();                                                 // EEPROM abschliessen
-    myRTC.adjust(DateTime( intYear, intMonth,  intDay,  intHour,  intMinute, 0));
+    myRTC.adjust(DateTime(intYear, intMonth, intDay, intHour, intMinute, 0));
     now = myRTC.now();
   }
-  now = myRTC.now();
 
-  Content = "<!DOCTYPE html><html lang='de'><head><meta charset='UTF-8'>"
-            "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
-  Content += "<title>BMS-Logger Setup</title>";
-  Content += getModernCSS();
-  Content += "<style>input[type=text],input[type=number]{width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box} .date-inputs input{width:auto;display:inline-block;margin-right:2px;text-align:center}</style>";
-  Content += "<script>function jn(text){return confirm(text);}</script></head><body><div class='container'>\n"
-             "<script>window.history.pushState({}, document.title, window.location.pathname);</script>";
-             
-  Content += "<div class='top-bar'><h2>Einstellungen</h2><a class='btn' href='/'>Zurück</a></div>";
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.send(200, "text/html", "");
 
-  Content += "<div class='card'><h3>Geräteinfo</h3>";
-  Content += "<p><b>Version:</b> " + Version + "<br><b>Build:</b> " + Build + "<br><b>IP:</b> " + sIPAdresse + " &nbsp; <b>RSSI:</b> " + WiFi.RSSI() + " dBm<br>";
-  Content += "<b>BMS-Typ:</b> " + packVersionsInfo.sBMSTyp + "<br><b>BT-Name:</b> " + BT_Name + "<br><b>BT RSSI:</b> " + String(myRSSI, 0) + " dBm</p></div>";
+  String chunk;
+  chunk = "<!DOCTYPE html><html lang='de'><head><meta charset='UTF-8'>"
+          "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
+          "<title>BMS-Logger Setup</title>";
+  chunk += getModernCSS();
+  chunk += "<style>input[type=text],input[type=number]{width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box} .date-inputs input{width:auto;display:inline-block;margin-right:2px;text-align:center}</style>";
+  chunk += "<script>function jn(text){return confirm(text);}</script></head><body><div class='container'>\n"
+           "<script>window.history.pushState({}, document.title, window.location.pathname);</script>";
+  chunk += "<div class='top-bar'><h2>Einstellungen</h2><a class='btn' href='/'>Zurück</a></div>";
+  server.sendContent(chunk);
 
-  Content += "<form method='GET'><div class='card'><h3>Systemzeit & Speichern</h3><table class='info-table'>";
-  Content += "<tr><td>Datum & Uhrzeit<br><small>dd.mm.yyyy, hh:mm</small></td><td class='date-inputs'>"
-             "<input name='DAY' value='" + String(now.day()) + "' size='2' maxLength='2'> . "
-             "<input name='MONTH' value='" + String(now.month()) + "' size='2' maxLength='2'> . "
-             "<input name='YEAR' value='" + String(now.year()) + "' size='4' maxLength='4'> &nbsp; "
-             "<input name='Stunden' value='" + String(now.hour()) + "' size='2' maxLength='2'> : "
-             "<input name='Minuten' value='" + String(now.minute()) + "' size='2' maxLength='2'>"
-             "</td></tr>";
-  Content += "<tr><td>Speicherintervall<br><small>(1-60 Minuten)</small></td><td><input name='Intervall' type='number' min='1' max='60' step='1' value='" + Intervall + "'></td></tr>";
-  Content += "</table></div>";
+  chunk = "<div class='card'><h3>Geräteinfo</h3>";
+  chunk += "<p><b>Version:</b> " + Version + "<br><b>Build:</b> " + Build + "<br><b>IP:</b> " + sIPAdresse + " &nbsp; <b>RSSI:</b> " + WiFi.RSSI() + " dBm<br>";
+  chunk += "<b>BMS-Typ:</b> " + packVersionsInfo.sBMSTyp + "<br><b>BT-Name:</b> " + BT_Name + "<br><b>BT RSSI:</b> " + String(myRSSI, 0) + " dBm</p></div>";
+  server.sendContent(chunk);
 
-  Content += "<div class='card'><h3>Netzwerk</h3><table class='info-table'>";
-  Content += "<tr><td>WLAN SSID</td><td><input type='text' name='SSID_WLAN' minlength='8' maxlength='50' value='" + WLAN_SSID + "'></td></tr>";
-  Content += "<tr><td>WLAN Passwort</td><td><input type='text' name='PASS_WLAN' minlength='8' maxlength='50' value='" + WLAN_PASS + "'></td></tr>";
-  Content += "<tr><td>AccessPoint Passwort</td><td><input type='text' name='myPassword' minlength='8' maxlength='50' value='" + myPassword + "'></td></tr>";
-  Content += "</table></div>";
+  chunk = "<form method='GET'><div class='card'><h3>Systemzeit & Speichern</h3><table class='info-table'>";
+  chunk += "<tr><td>Datum & Uhrzeit<br><small>dd.mm.yyyy, hh:mm</small></td><td class='date-inputs'>"
+           "<input name='DAY' value='" + String(now.day()) + "' size='2' maxLength='2'> . "
+           "<input name='MONTH' value='" + String(now.month()) + "' size='2' maxLength='2'> . "
+           "<input name='YEAR' value='" + String(now.year()) + "' size='4' maxLength='4'> &nbsp; "
+           "<input name='Stunden' value='" + String(now.hour()) + "' size='2' maxLength='2'> : "
+           "<input name='Minuten' value='" + String(now.minute()) + "' size='2' maxLength='2'>"
+           "</td></tr>";
+  chunk += "<tr><td>Speicherintervall<br><small>(1-60 Minuten)</small></td><td><input name='Intervall' type='number' min='1' max='60' step='1' value='" + Intervall + "'></td></tr>";
+  chunk += "</table></div>";
+  server.sendContent(chunk);
 
-  Content += "<div class='card'><h3>BMS Batterie Zuordnungen</h3><table class='info-table'>";
-  Content += "<tr><td>Batterie 1 MAC<br><small>Wird für Fast-Switch per Taste benötigt</small></td><td><input type='text' name='BMS_MAC_1' maxlength='17' placeholder='AA:BB:CC:DD:EE:FF' value='" + BMS_MAC_1 + "'></td></tr>";
-  Content += "<tr><td>Batterie 2 MAC</td><td><input type='text' name='BMS_MAC_2' maxlength='17' placeholder='AA:BB:CC:DD:EE:FF' value='" + BMS_MAC_2 + "'></td></tr>";
-  Content += "</table><br><button type='submit' class='btn' style='width:100%;margin-bottom:10px'>Speichern & Anwenden</button></form></div>";
+  chunk = "<div class='card'><h3>Netzwerk</h3><table class='info-table'>";
+  chunk += "<tr><td>WLAN SSID</td><td><input type='text' name='SSID_WLAN' minlength='8' maxlength='50' value='" + WLAN_SSID + "'></td></tr>";
+  chunk += "<tr><td>WLAN Passwort</td><td><input type='text' name='PASS_WLAN' minlength='8' maxlength='50' value='" + WLAN_PASS + "'></td></tr>";
+  chunk += "<tr><td>AccessPoint Passwort</td><td><input type='text' name='myPassword' minlength='8' maxlength='50' value='" + myPassword + "'></td></tr>";
+  chunk += "</table></div>";
+  server.sendContent(chunk);
 
-  Content += "<div class='card'><h3>Aktionen</h3><table class='info-table'>";
-  Content += "<tr><td>ESP32 Hard Reset</td><td style='text-align:right'><form method='POST' action='/Reset' style='margin:0'><button type='submit' class='btn btn-danger' onclick=\"return jn('Hardware sicher resetten?')\">Neustart</button></form></td></tr>";
-  Content += "</table></div>";
+  chunk = "<div class='card'><h3>BMS Batterie Zuordnungen</h3><table class='info-table'>";
+  chunk += "<tr><td>Batterie 1 MAC<br><small>Wird für Fast-Switch per Taste benötigt</small></td><td><input type='text' name='BMS_MAC_1' maxlength='17' placeholder='AA:BB:CC:DD:EE:FF' value='" + BMS_MAC_1 + "'></td></tr>";
+  chunk += "<tr><td>Batterie 2 MAC</td><td><input type='text' name='BMS_MAC_2' maxlength='17' placeholder='AA:BB:CC:DD:EE:FF' value='" + BMS_MAC_2 + "'></td></tr>";
+  chunk += "</table><br><button type='submit' class='btn' style='width:100%;margin-bottom:10px'>Speichern & Anwenden</button></form></div>";
+  server.sendContent(chunk);
 
-  Content += "</div></body></html>\n";
+  chunk = "<div class='card'><h3>Aktionen</h3><table class='info-table'>";
+  chunk += "<tr><td>ESP32 Hard Reset</td><td style='text-align:right'><form method='POST' action='/Reset' style='margin:0'><button type='submit' class='btn btn-danger' onclick=\"return jn('Hardware sicher resetten?')\">Neustart</button></form></td></tr>";
+  chunk += "</table></div>";
+  chunk += "</div></body></html>\n";
+  server.sendContent(chunk);
+  server.sendContent("");
 
-  server.send(200, "text/html", Content);                                              // und weg damit
   Serial.println();
   delay(1000);
 }
@@ -516,65 +529,73 @@ void Reset()
   ESP.restart();
 }
 
-//-------------------------------------------------
-void ChartSeite() {
-  Content = "<!DOCTYPE html><html lang='de'><head><meta charset='UTF-8'>";
-  Content += getModernCSS();
-  Content += "<title>BMS Diagramme</title>";
-  Content += "<script src='https://cdn.jsdelivr.net/npm/chart.js'></script>";
-  Content += "<style>.chart-container{position:relative;height:300px;width:100%}</style>";
-  Content += "</head><body><div class='container'>";
-  Content += "<div class='top-bar'><h2>Diagramme</h2>";
-  Content += "<select id='bmsSelect' class='btn' style='background:#444; border:none; color:#fff; cursor:pointer;'></select>";
-  Content += "<a class='btn' href='/'>Zurück</a></div>";
-  Content += "<div class='card'><div class='chart-container'><canvas id='chartVoltage'></canvas></div></div>";
-  Content += "<div class='card'><div class='chart-container'><canvas id='chartCells'></canvas></div></div>";
-  Content += "<div class='card'><div class='chart-container'><canvas id='chartCurrent'></canvas></div></div>";
-  Content += "<div class='card'><div class='chart-container'><canvas id='chartCapacity'></canvas></div></div>";
-  
-  Content += "<script>";
-  Content += "let chartV, chartC, chartA, chartCap;";
-  Content += "let allData = {};";
-  Content += "fetch('/BMS_LOG.CSV').then(r => r.text()).then(csv => {";
-  Content += "  const rows = csv.trim().split('\\n').slice(1);";
-  Content += "  rows.forEach(r => {";
-  Content += "    const c = r.split(';');";
-  Content += "    if(c.length > 9) {";
-  Content += "      let bmsName = 'Alte Daten';";
-  Content += "      let offset = 0;";
-  Content += "      if(!c[0].includes('.')) { bmsName = c[0]; offset = 1; } else { offset = 0; }";
-  Content += "      if(!allData[bmsName]) allData[bmsName] = { labels:[], volts:[], amps:[], c1:[], c2:[], c3:[], c4:[], caps:[] };";
-  Content += "      const d = allData[bmsName];";
-  Content += "      d.labels.push(c[offset] + ' ' + c[offset+1]);";
-  Content += "      d.volts.push(parseFloat(c[offset+3].replace(',','.')));";
-  Content += "      d.amps.push(parseFloat(c[offset+4].replace(',','.')));";
-  Content += "      d.c1.push(parseFloat(c[offset+5].replace(',','.')));";
-  Content += "      d.c2.push(parseFloat(c[offset+6].replace(',','.')));";
-  Content += "      d.c3.push(parseFloat(c[offset+7].replace(',','.')));";
-  Content += "      d.c4.push(parseFloat(c[offset+8].replace(',','.')));";
-  Content += "      d.caps.push(parseFloat(c[offset+9].replace(',','.')));";
-  Content += "    }";
-  Content += "  });";
-  Content += "  const sel = document.getElementById('bmsSelect');";
-  Content += "  Object.keys(allData).forEach(k => { const opt = document.createElement('option'); opt.value = k; opt.textContent = k; sel.appendChild(opt); });";
-  Content += "  if(Object.keys(allData).length > 0) updateCharts(Object.keys(allData)[0]);";
-  Content += "  sel.addEventListener('change', (e) => updateCharts(e.target.value));";
-  Content += "});";
-  Content += "function updateCharts(bms) {";
-  Content += "  const d = allData[bms];";
-  Content += "  const config = (l, dat, lbl, col) => ({ type:'line', data:{ labels:l, datasets:[{ label:lbl, data:dat, borderColor:col, backgroundColor:col, tension:0.1, pointRadius:1 }] }, options:{responsive:true, maintainAspectRatio:false, animation:{duration:0}}});";
-  Content += "  const configCells = (l, d1, d2, d3, d4) => ({ type:'line', data:{ labels:l, datasets:[";
-  Content += "    { label:'Zelle 1', data:d1, borderColor:'#ff6384', backgroundColor:'#ff6384', tension:0.1, pointRadius:1 },";
-  Content += "    { label:'Zelle 2', data:d2, borderColor:'#36a2eb', backgroundColor:'#36a2eb', tension:0.1, pointRadius:1 },";
-  Content += "    { label:'Zelle 3', data:d3, borderColor:'#cc65fe', backgroundColor:'#cc65fe', tension:0.1, pointRadius:1 },";
-  Content += "    { label:'Zelle 4', data:d4, borderColor:'#ffce56', backgroundColor:'#ffce56', tension:0.1, pointRadius:1 }";
-  Content += "  ]}, options:{responsive:true, maintainAspectRatio:false, animation:{duration:0}}});";
-  Content += "  if(chartV) { chartV.destroy(); chartC.destroy(); chartA.destroy(); chartCap.destroy(); }";
-  Content += "  chartV = new Chart(document.getElementById('chartVoltage'), config(d.labels, d.volts, 'Gesamtspannung (V)', '#007bff'));";
-  Content += "  chartC = new Chart(document.getElementById('chartCells'), configCells(d.labels, d.c1, d.c2, d.c3, d.c4));";
-  Content += "  chartA = new Chart(document.getElementById('chartCurrent'), config(d.labels, d.amps, 'Strom (A)', '#28a745'));";
-  Content += "  chartCap = new Chart(document.getElementById('chartCapacity'), config(d.labels, d.caps, 'Restkapazität (Ah)', '#ffc107'));";
-  Content += "}";
-  Content += "</script></body></html>";
-  server.send(200, "text/html", Content);
+void ChartSeite()
+{
+  Serial.println("Chart - Anfrage");
+
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.send(200, "text/html", "");
+
+  String chunk;
+  chunk = "<!DOCTYPE html><html lang='de'><head><meta charset='UTF-8'>"
+          "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
+          "<title>BMS-Diagramme</title>";
+  chunk += getModernCSS();
+  chunk += "<script src='https://cdn.jsdelivr.net/npm/chart.js'></script></head><body><div class='container'>";
+  chunk += "<div class='top-bar'><h2>Batterie Diagramme</h2>";
+  chunk += "<select id='bmsSelect' class='btn' style='background:#444; border:none; color:#fff; cursor:pointer; margin-right:10px'></select>";
+  chunk += "<a class='btn' href='/'>Zurück</a></div>";
+  server.sendContent(chunk);
+
+  chunk = "<div class='card' style='height:300px'><canvas id='chartVoltage'></canvas></div>";
+  chunk += "<div class='card' style='height:300px'><canvas id='chartCells'></canvas></div>";
+  chunk += "<div class='card' style='height:300px'><canvas id='chartCurrent'></canvas></div>";
+  chunk += "<div class='card' style='height:300px'><canvas id='chartCapacity'></canvas></div>";
+  server.sendContent(chunk);
+
+  chunk = "<script>\n"
+          "let chartV, chartC, chartA, chartCap;\n"
+          "let allData = {};\n"
+          "fetch('/BMS_LOG.CSV').then(r => r.text()).then(csv => {\n"
+          "  const rows = csv.trim().split('\\n').slice(1);\n"
+          "  rows.forEach(r => {\n"
+          "    const c = r.split(';');\n"
+          "    if(c.length > 9) {\n"
+          "      let bmsName = c[0] || 'Unbekannt';\n"
+          "      if(!allData[bmsName]) allData[bmsName] = { labels:[], volts:[], amps:[], c1:[], c2:[], c3:[], c4:[], caps:[] };\n"
+          "      const d = allData[bmsName];\n"
+          "      d.labels.push(c[2]);\n"
+          "      d.volts.push(parseFloat(c[4]));\n"
+          "      d.amps.push(parseFloat(c[5]));\n"
+          "      d.c1.push(parseFloat(c[6]));\n"
+          "      d.c2.push(parseFloat(c[7]));\n"
+          "      d.c3.push(parseFloat(c[8]));\n"
+          "      d.c4.push(parseFloat(c[9]));\n"
+          "      d.caps.push(parseFloat(c[3]));\n"
+          "    }\n"
+          "  });\n"
+          "  const sel = document.getElementById('bmsSelect');\n"
+          "  Object.keys(allData).forEach(k => { const opt = document.createElement('option'); opt.value = k; opt.textContent = k; sel.appendChild(opt); });\n"
+          "  if(Object.keys(allData).length > 0) updateCharts(Object.keys(allData)[0]);\n"
+          "  sel.onchange = (e) => updateCharts(e.target.value);\n"
+          "});\n";
+  server.sendContent(chunk);
+
+  chunk = "function updateCharts(bms) {\n"
+          "  const d = allData[bms];\n"
+          "  const config = (l, dat, lbl, col) => ({ type:'line', data:{ labels:l, datasets:[{ label:lbl, data:dat, borderColor:col, tension:0.1, pointRadius:1 }] }, options:{responsive:true, maintainAspectRatio:false}});\n"
+          "  if(chartV) { chartV.destroy(); chartC.destroy(); chartA.destroy(); chartCap.destroy(); }\n"
+          "  chartV = new Chart(document.getElementById('chartVoltage'), config(d.labels, d.volts, 'Spannung (V)', '#007bff'));\n"
+          "  chartA = new Chart(document.getElementById('chartCurrent'), config(d.labels, d.amps, 'Strom (A)', '#28a745'));\n"
+          "  chartCap = new Chart(document.getElementById('chartCapacity'), config(d.labels, d.caps, 'SOC (%)', '#ffc107'));\n"
+          "  chartC = new Chart(document.getElementById('chartCells'), { type:'line', data:{ labels:d.labels, datasets:[\n"
+          "    {label:'Z1', data:d.c1, borderColor:'#ff6384', tension:0.1, pointRadius:1},\n"
+          "    {label:'Z2', data:d.c2, borderColor:'#36a2eb', tension:0.1, pointRadius:1},\n"
+          "    {label:'Z3', data:d.c3, borderColor:'#cc65fe', tension:0.1, pointRadius:1},\n"
+          "    {label:'Z4', data:d.c4, borderColor:'#ffce56', tension:0.1, pointRadius:1}\n"
+          "  ]}, options:{responsive:true, maintainAspectRatio:false}});\n"
+          "}\n"
+          "</script></body></html>\r\n";
+  server.sendContent(chunk);
+  server.sendContent("");
 }
