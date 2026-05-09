@@ -26,9 +26,10 @@ const String Build    = "Build " + String(__DATE__) + ",\n" + String(  __TIME__)
 #include "mydatatypes.h"
 #include "EEPROM.h"
 #include "SPIFFS.h"
-#include <WiFi.h>
-#include <SD.h>
 #include <analogWrite.h>
+#include <WiFi.h>
+#include <SPI.h>
+#include <SD.h>
 #include "soc/soc.h"                                                 // Disable brownour problems
 #include "soc/rtc_cntl_reg.h"
 
@@ -103,6 +104,8 @@ String   sLogFileName = "Log.txt",
 
 bool     sdCardActive = false;                                       // Flag für SD-Karte
 int      lastLogMinute = -1;                                         // Merker für Intervall-Log
+
+SPIClass sdSPI(HSPI);                                                // Zweiter SPI Bus für SD-Karte (TTGO T4)
 
 String   FehlerName[] = {"Zellen Ueberspannung", "Zellen Unterspannung",
                          "Batterie Ueberspannung", "Batterie-Unterspannung",
@@ -205,12 +208,13 @@ void setup()
 
   SPIFFS.begin(true);
 
-  // SD-Karte initialisieren (CS auf Pin 13, da Pin 5 vom TFT_RST belegt ist)
-  if (SD.begin(13)) {
+  // SD-Karte für LilyGO TTGO T4 (Pins: SCLK=14, MISO=2, MOSI=15, CS=13)
+  sdSPI.begin(14, 2, 15, 13); 
+  if (SD.begin(13, sdSPI)) {
     sdCardActive = true;
-    Serial.println("SD-Karte gefunden und aktiv.");
+    Serial.println("TTGO T4 SD-Karte gefunden und aktiv.");
   } else {
-    Serial.println("Keine SD-Karte an Pin 13 gefunden, nutze internen Speicher.");
+    Serial.println("TTGO T4 SD-Karte NICHT gefunden, nutze internen Speicher.");
   }
 
   pinMode(Backlight, OUTPUT);                                        // LED als Output definieren
