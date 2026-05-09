@@ -101,6 +101,7 @@ String   sLogFileName = "Log.txt",
 
 bool     sdCardActive = false;                                       // Flag für SD-Karte (AKTUELL DEAKTIVIERT)
 int      lastLogMinute = -1;                                         // Merker für Intervall-Log
+uint32_t webServerLastActive = 0;                                    // Zeitstempel für Webserver-Aktivität
 
 // SPIClass sdSPI(HSPI);                                                // Deaktiviert wegen RAM-Mangel
 
@@ -547,8 +548,12 @@ void loop()
     while (digitalRead(BUTTON_Rechts) == LOW) delay(100);
   }
 
-  bleRequestData();                                                // BMS abfragen
-  delay(100);
+  if (millis() - webServerLastActive > 1000) {
+    bleRequestData();                                                // BMS abfragen
+  } else {
+    // Während Webserver-Aktivität keine BLE-Abfragen, um WLAN stabil zu halten
+    delay(10);
+  }
 
   if (last_Blink + 1000 < millis())                                // Hardbeat 1 Sek.
   {

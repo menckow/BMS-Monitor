@@ -162,6 +162,8 @@ void mache_HTML_Seite()                                                        /
 
   chunk += "</table></div></div></body></html>\r\n";
   server.sendContent(chunk);
+  server.sendContent("");
+  webServerLastActive = millis();
 }
 
 //----------------------------------------------------
@@ -207,6 +209,7 @@ void handleRoot()                                                               
     tft.fillScreen(TFT_BLACK);
   }
   Screensaver = 0;                                                                   // Bildschirmschoner aus
+  webServerLastActive = millis();
 }
 
 //----------------------------------------------------
@@ -300,6 +303,7 @@ void Listen()                                                                   
   chunk += "</div></body></html>\n";
   server.sendContent(chunk);
   server.sendContent("");
+  webServerLastActive = millis();
 }
 
 //----------------------------------------------------
@@ -350,6 +354,7 @@ void StatusAbfrage()                                                            
 
   server.sendContent("</table></div></div></body></html>\n");
   server.sendContent(""); // Ende
+  webServerLastActive = millis();
 
   Serial.println();
   delay(1000);
@@ -437,9 +442,8 @@ void SetUpDaten()                                                               
   chunk += "</div></body></html>\n";
   server.sendContent(chunk);
   server.sendContent("");
-
+  webServerLastActive = millis();
   Serial.println();
-  delay(1000);
 }
 
 //-------------------------------------------------
@@ -512,6 +516,7 @@ void handleFileUpload()
     delay(10);
     Listen();
   }
+  webServerLastActive = millis();
 }
 
 //-------------------------------------------------
@@ -521,6 +526,7 @@ void Fehlerloeschen()                                                           
   "bms._fault_counts()";
   delay(1000);
   StatusAbfrage();
+  webServerLastActive = millis();
 }
 //-------------------------------------------------
 void Reset()
@@ -598,4 +604,5 @@ void ChartSeite()
           "</script></body></html>\r\n";
   server.sendContent(chunk);
   server.sendContent("");
+  webServerLastActive = millis();
 }
