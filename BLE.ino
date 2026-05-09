@@ -72,7 +72,7 @@ void bleRequestData()
     {
       Serial.println("We are now connected to the BLE Server.");
       lcdConnected();
-      delay(400); // Dem Nutzer kurz Zeit geben, die Gruene Erfolgsmeldung zu sehen
+      yieldWeb(400); // Dem Nutzer kurz Zeit geben, die Gruene Erfolgsmeldung zu sehen
       tft.fillScreen(TFT_BLACK); 
       extern bool force_battery_redraw;
       force_battery_redraw = true;
@@ -165,23 +165,23 @@ void selectBmsMenu() {
            selectedIndex--;
            if (selectedIndex < 0) selectedIndex = foundDevicesCount - 1;
            menuStartTime = millis(); 
-           delay(250); 
+           yieldWeb(250); 
            break;
        }
        if (digitalRead(BUTTON_Rechts) == LOW) { // Runter
            selectedIndex++;
            if (selectedIndex >= foundDevicesCount) selectedIndex = 0;
            menuStartTime = millis(); 
-           delay(250); 
+           yieldWeb(250); 
            break;
        }
        if (digitalRead(BUTTON_Mitte) == LOW) { // OK
            confirmed = true;
-           delay(250);
+           yieldWeb(250);
            break;
        }
        esp_task_wdt_reset(); 
-       delay(20);
+       yieldWeb(20);
     }
     if (confirmed) break;
   }
@@ -339,7 +339,7 @@ bool connectToServer()
     lcdConnectingStatus(5);
     Serial.println(charUUID_rx.toString().c_str());
     pClient->disconnect();
-    delay(400);
+    yieldWeb(400);
     tft.fillScreen(TFT_BLACK); // Clean up GUI on failure
     extern bool force_battery_redraw;
     force_battery_redraw = true;

@@ -52,7 +52,7 @@ void WLAN_Ein()
     while ((WiFi.status() != WL_CONNECTED) && (n <= 10))         // max. 10 Versuche
     {
       yield();
-      delay(2000);
+      yieldWeb(2000);
       Serial.print(".");
       tft.print("*");
       n++;
@@ -94,7 +94,7 @@ void WLAN_Ein()
       Serial.println("WLAN Fehler");
       tft.setCursor(1, 80);
       tft.print("WLAN Fehler");
-      delay(1000);
+      yieldWeb(1000);
       connectet = false;
     }
   }
@@ -147,6 +147,6 @@ void WLAN_Ein()
 
   server.begin();
   Serial.println("HTTP Server gestarted");
-  delay(2000);
+  yieldWeb(2000);
 }
 //----------------------------------------------

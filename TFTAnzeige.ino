@@ -115,7 +115,7 @@ void drawBattery(int x, int y, int percent, bool force = false) {
 
 void voltage(){
   digitalWrite(14, HIGH);
-  delay(1);
+  yieldWeb(1);
   float measurement = (float) analogRead(35); //VBAT Pin 35=T4 34=TS
   float battery_voltage = (measurement / 4095.0) * 7.26;
   digitalWrite(14, LOW);
@@ -151,7 +151,7 @@ void TFT_Anzeige()
     
     tft.setCursor(PosX, PosY + 120);
     digitalWrite(14, HIGH);
-    delay(1);
+    yieldWeb(1);
     float measurement = (float) analogRead(35); //VBAT Pin 35=T4 34=TS
     float battery_voltage = (measurement / 4095.0) * 7.26;
     digitalWrite(14, LOW);
@@ -369,10 +369,10 @@ void Fehler_Anzeige()
 
   while (digitalRead(BUTTON_Mitte) == HIGH)
   {
-    delay(100);
+    yieldWeb(100);
     esp_task_wdt_reset();                                            // Watchdog reset
   }
-  delay(100);
+  yieldWeb(100);
   tft.unloadFont();
   tft.fillScreen(TFT_BLACK);
 }

@@ -158,6 +158,7 @@ name_t *sArr;                                                        // Das wird
 // Funktionen deklarieren --------------------------------------------------------------------
 void    setup();
 void    loop();
+void    yieldWeb(uint32_t ms);
 String  FuelleLinks(String Str, uint8_t Laenge);                            // String vorne mit Space ergänzen
 void    WLAN_Ein();                                                  // WLAN zur Parametereinabe aktivieren
 void    handleRoot();                                                // HTML-Seite senden
@@ -183,7 +184,7 @@ void setup()
   Serial.begin(115200);
   while (!Serial)
   {
-    delay(200);
+    yieldWeb(200);
   };
 
   esp_task_wdt_init(WDT_TIMEOUT, true);               // enable panic so ESP32 restarts
@@ -269,7 +270,7 @@ void setup()
   {
     tft.print("_");
     j++;
-    delay(50);
+    yieldWeb(50);
     if (digitalRead(BUTTON_Mitte) == LOW)
     {
       myPassword = "";
@@ -304,7 +305,7 @@ void setup()
 
   tft.println("Intervall " + Intervall);
   tft.println("AP-PASS   " + myPassword);
-  delay(2000);
+  yieldWeb(2000);
 
   Serial.println("DS1307RTC Read Test");
   Serial.println("-------------------");
@@ -322,7 +323,7 @@ void setup()
     nX = 10;
     while (nX > 0)
     {
-      delay(100);
+      yieldWeb(100);
       nX--;
       Serial.println(nX);
     }
@@ -357,7 +358,7 @@ void setup()
     Serial.print(" ");
     tft.print(5 - nX);
     tft.print(" ");
-    delay(1000);
+    yieldWeb(1000);
   }
   tft.println();
   Serial.println();
@@ -369,7 +370,7 @@ void setup()
   if (BLE_client_connected == true)
   {
     get_bms_name();                                                        // BMS-Name holen
-    delay(100);
+    yieldWeb(100);
   }
   else
   {
@@ -397,7 +398,7 @@ void setup()
 void loop()
 {
   server.handleClient();                                             // WLAN HTTP Abfrage
-  delay(10);
+  yieldWeb(10);
   Variable_X = 0;
 
   tft.setTextSize(2);
@@ -425,7 +426,7 @@ void loop()
       tft.fillScreen(TFT_BLACK);
       Reset();
     }
-    delay(200);
+    yieldWeb(200);
     Variable_X++;
     Serial.println(Variable_X);
     if (digitalRead(BUTTON_Mitte) != LOW) break;
@@ -452,7 +453,7 @@ void loop()
        if (BLE_client_connected && mypClient != nullptr) {
            Serial.println("Trenne alte BMS Verbindung...");
            mypClient->disconnect();
-           delay(400); // Dem BLE Stack Zeit geben zum Schliessen
+           yieldWeb(400); // Dem BLE Stack Zeit geben zum Schliessen
            delete mypClient; // Speicher und Stack-Resourcen restlos freigeben! Verhindert Reboot-Bug beim Re-Connect!
            mypClient = nullptr;
        }
@@ -469,7 +470,7 @@ void loop()
                           bitRead(packBasicInfo.MosfetStatus, 0));      // Setzte MOS_FET ein/aus
     }
     
-    delay(200);
+    yieldWeb(200);
   }
 
   if (digitalRead(BUTTON_Rechts) == LOW)
@@ -488,7 +489,7 @@ void loop()
             
             // Clean disconnect des aktuellen BMS
             mypClient->disconnect();
-            delay(400); 
+            yieldWeb(400); 
             delete mypClient;
             mypClient = nullptr;
             BLE_client_connected = false;
@@ -536,19 +537,19 @@ void loop()
         tft.drawString("Fehlende Web-Konfig", 120, 80);
         tft.drawString("Bitte erst 2 MACs eintragen!", 120, 110);
         tft.unloadFont();
-        delay(2000);
+        yieldWeb(2000);
         tft.fillScreen(TFT_BLACK);
         force_battery_redraw = true;
     }
     
-    delay(200);
+    yieldWeb(200);
   }
 
   if (millis() - webServerLastActive > 1000) {
     bleRequestData();                                                // BMS abfragen
   } else {
     // Während Webserver-Aktivität keine BLE-Abfragen, um WLAN stabil zu halten
-    delay(10);
+    yieldWeb(10);
   }
 
   if (last_Blink + 1000 < millis())                                // Hardbeat 1 Sek.
@@ -638,9 +639,12 @@ void loop()
       Serial.print("Bluetooth Name       ");
       Serial.println(BT_Name);
 
-      if (myRSSI == 0)  myRSSI = mypClient->getRssi();               // bei erster Messung vorbelegen
+      static uint32_t lastRSSI = 0;
+      if (millis() - lastRSSI > 10000 || myRSSI == 0) {
+          myRSSI = mypClient->getRssi() * FilterFaktor + myRSSI * (1 - FilterFaktor);
+          lastRSSI = millis();
+      }
       Serial.print("Bluetooth RSSI        ");
-      myRSSI = mypClient->getRssi() * FilterFaktor + myRSSI * (1 - FilterFaktor);
       Serial.println(myRSSI, 0);
 
       Serial.print("BMS Name              ");
@@ -887,7 +891,7 @@ void loop()
     //  tft.fillRect(0, 40, 128, 38, ST7735_BLUE);
     //  tft.print("    kein BT-Device,\n     bitte Reset");
 
-    delay(1000);
+    yieldWeb(1000);
   }
 }
 
@@ -936,4 +940,13 @@ String FuelleLinks(String Str, uint8_t Laenge)                               // 
   }
   S += Str;
   return (S);                                                         // String mit Leerzeichen zurück
+}
+//----------------------------------------------------
+void yieldWeb(uint32_t ms) {
+  uint32_t start = millis();
+  while (millis() - start < ms) {
+    server.handleClient();
+    delay(1);
+    esp_task_wdt_reset();
+  }
 }

@@ -189,7 +189,7 @@ void handleRoot()                                                               
       
       for (nX = 1; nX <= 10; nX++)                                                // max 10 Sekunden warten
       {
-        delay(1000);
+        yieldWeb(1000);
         bleRequestData();                                                         // BMS abfragen
         if (Variable_X != packBasicInfo.MosfetStatus) {
           Serial.println("BMS hat Status erfolgreich geändert!");
@@ -357,7 +357,7 @@ void StatusAbfrage()                                                            
   webServerLastActive = millis();
 
   Serial.println();
-  delay(1000);
+  yieldWeb(1000);
 }
 
 //----------------------------------------------------
@@ -514,7 +514,7 @@ void handleFileUpload()
   {
     if (fsUploadFile)
       fsUploadFile.close();
-    delay(10);
+    yieldWeb(10);
     Listen();
   }
   webServerLastActive = millis();
@@ -525,14 +525,14 @@ void Fehlerloeschen()                                                           
 {
   Serial.println("\nFehlerloeschen");
   "bms._fault_counts()";
-  delay(1000);
+  yieldWeb(1000);
   StatusAbfrage();
   webServerLastActive = millis();
 }
 //-------------------------------------------------
 void Reset()
 { Serial.println("R E S E T");
-  delay(100);
+  yieldWeb(100);
   ESP.restart();
 }
 
