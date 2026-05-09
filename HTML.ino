@@ -216,7 +216,7 @@ void Listen()                                                                   
              
   Content += "<div class='top-bar'><h2>Dateimanager</h2><a class='btn' href='/'>Zurück</a></div>";
 
-  File root = SPIFFS.open("/");                                                      // Aktuell im Speicher vorhandenen Dateien
+  File root = getFS().open("/");                                                      // Aktuell im Speicher vorhandenen Dateien
   File file = root.openNextFile();
   while (file) {
     nAnzahl ++;                                                                     // Anzahl zählen
@@ -233,7 +233,7 @@ void Listen()                                                                   
     char copy[60];                                                                   // max. Anzahl Zeichen pro Zeile
     String sTemp;
 
-    root = SPIFFS.open("/");                                                    // Aktuell im Speicher vorhandenen Dateien
+    root = getFS().open("/");                                                    // Aktuell im Speicher vorhandenen Dateien
     file = root.openNextFile();
 
     while (file)                                                                     // Verzeichniss abarbeiten
@@ -246,6 +246,17 @@ void Listen()                                                                   
     }
     bsort(sArr, nAnzahl, false);                                                     // Array sortieren, Groß- und Kleinschreibung egal
     root.close();
+
+    Content += "<div class='card'><h3>" + String(sdCardActive ? "SD Karte" : "SPIFFS Speicher") + "</h3>";
+    Content += "<p>Belegt: <b>" + formatBytes(getFSUsedBytes()) + "</b> / " + formatBytes(getFSTotalBytes()) + "</p>";
+    
+    int spiffsPct = (getFSTotalBytes() > 0) ? (getFSUsedBytes() * 100) / getFSTotalBytes() : 0;
+    Content += "<div class='progress-container' style='margin-bottom:15px'><div class='progress-bar' style='width:" + String(spiffsPct) + "%;background-color:#007bff'></div></div>";
+    
+    if (!sdCardActive) {
+        Content += "<form method='POST' action='/format'><input type='submit' value='Speicher Formatieren' class='btn btn-danger' onclick=\"return janein('Wirklich formatieren? Alle Daten gehen restlos verloren!')\"></form>";
+    }
+    Content += "</div>";
 
     Content += "<div class='card'><table class='info-table'>";
     for (uint16_t i = 0; i < nAnzahl; i++)                                           // HTML-Liste aufbauen

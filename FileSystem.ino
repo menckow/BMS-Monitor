@@ -16,6 +16,9 @@ String schreibeDatei(String Text, String filename, bool Flag)                   
 
   if (!sFileName.startsWith("/")) sFileName = "/" + filename;
 
+  Serial.print(sdCardActive ? "[SD] Schreibe: " : "[SPIFFS] Schreibe: ");
+  Serial.println(sFileName);
+
   if (Flag)                                                                           // an Datei anhängen
   {
     sFile = getFS().open(sFileName, "a");
@@ -45,6 +48,10 @@ bool handleFileRead(String path)
   if (getFS().exists(pathWithGz) || getFS().exists(path))
   {
     if (getFS().exists(pathWithGz)) path += ".gz";
+    
+    Serial.print(sdCardActive ? "[SD] Lese: " : "[SPIFFS] Lese: ");
+    Serial.println(path);
+    
     File file = getFS().open(path, "r");
     size_t sent = server.streamFile(file, getContentType(path));
     file.close();
@@ -59,7 +66,9 @@ void Loeschen()
   String sFileName = server.arg(0);
   if (!sFileName.startsWith("/")) sFileName = "/" + sFileName;
 
-  Serial.print("Loeschen : " + sFileName);
+  Serial.print(sdCardActive ? "[SD] Loesche : " : "[SPIFFS] Loesche : ");
+  Serial.println(sFileName);
+  
   getFS().remove(sFileName);                                                       // hier wird gelöscht
 
   Listen();
@@ -68,9 +77,20 @@ void Loeschen()
 //-------------------------------------------------
 void formatSpeicher() {                                                               // Formatiert den Speicher
   if (sdCardActive) {
-      Serial.println("SD Karte kann nicht formatiert werden.");
+      Serial.println("[SD] Formatierung nicht unterstützt.");
   } else {
+      Serial.println("[SPIFFS] Formatiere Speicher...");
       SPIFFS.format();
   }
   Listen();
+}
+
+size_t getFSTotalBytes() {
+  if (sdCardActive) return SD.totalBytes();
+  return SPIFFS.totalBytes();
+}
+
+size_t getFSUsedBytes() {
+  if (sdCardActive) return SD.usedBytes();
+  return SPIFFS.usedBytes();
 }
