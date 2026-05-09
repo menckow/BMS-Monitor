@@ -1,40 +1,137 @@
+// SD-Karte on-demand mounten — gibt ~20 KB Heap frei wenn nicht aktiv genutzt.
+// Damit bleibt genug Heap für stabilen Webserver-/WiFi-Betrieb.
+
+#define BUFFER_FLUSH_THRESHOLD 50000                                 // SPIFFS-Buffer auf SD flushen ab ~50 KB
+#define LOG_FILENAME "/BMS_LOG.CSV"
+
+bool sdMount() {
+  if (!sdCardPresent) return false;
+  webServerLastActive = millis();                                    // BLE-Polling im loop() pausieren (Heap-Schutz)
+  if (sdCardActive) return true;                                     // schon gemountet
+  if (SD.begin(13, sdSPI, 4000000)) {
+    sdCardActive = true;
+    return true;
+  }
+  return false;
+}
+
+void sdUnmount() {
+  if (sdCardActive) {
+    SD.end();
+    sdCardActive = false;
+  }
+  webServerLastActive = millis();                                    // noch 1 Sek BLE-Pause für Beruhigung
+}
+
 fs::FS& getFS() {
   if (sdCardActive) return SD;
   return SPIFFS;
 }
 
+//-------------------------------------------------
+// SPIFFS-Buffer auf SD-Karte verschieben.
+// - Erster Flush: kompletter Inhalt (inkl. Header) auf SD.
+// - Folge-Flush: erste Zeile (Header) überspringen, Rest anhängen.
+// - SPIFFS-Datei wird erst NACH erfolgreichem SD-Schreiben gelöscht (Stromausfall-sicher).
+// Rückgabe: true wenn erfolgreich, false bei Fehler (SPIFFS bleibt dann erhalten).
+bool flushBufferToSD() {
+  if (!sdCardPresent) return false;
+  if (!SPIFFS.exists(LOG_FILENAME)) return true;                     // nichts zu flushen
+
+  Serial.println("[FLUSH] Starte SPIFFS -> SD Transfer...");
+  uint32_t heapVor = ESP.getFreeHeap();
+
+  if (!sdMount()) {
+    Serial.println("[FLUSH] SD-Mount fehlgeschlagen!");
+    return false;
+  }
+
+  bool sdHasFile = SD.exists(LOG_FILENAME);
+  File src = SPIFFS.open(LOG_FILENAME, "r");
+  if (!src) {
+    Serial.println("[FLUSH] SPIFFS-Datei nicht lesbar!");
+    sdUnmount();
+    return false;
+  }
+
+  File dst = SD.open(LOG_FILENAME, sdHasFile ? "a" : "w");
+  if (!dst) {
+    Serial.println("[FLUSH] SD-Datei nicht schreibbar!");
+    src.close();
+    sdUnmount();
+    return false;
+  }
+
+  // Wenn SD-Datei existiert: erste Zeile (Header) aus SPIFFS-Quelle überspringen
+  if (sdHasFile) {
+    while (src.available() && src.read() != '\n') { /* skip header */ }
+  }
+
+  // Daten in 512-Byte-Blöcken kopieren — schont Heap, gibt yield()-Möglichkeit
+  uint8_t buf[512];
+  size_t totalCopied = 0;
+  while (src.available()) {
+    size_t n = src.read(buf, sizeof(buf));
+    if (n == 0) break;
+    if (dst.write(buf, n) != n) {
+      Serial.println("[FLUSH] Schreibfehler auf SD!");
+      dst.close();
+      src.close();
+      sdUnmount();
+      return false;                                                  // SPIFFS bleibt erhalten
+    }
+    totalCopied += n;
+    yield();
+    esp_task_wdt_reset();
+  }
+
+  dst.flush();
+  dst.close();
+  src.close();
+  sdUnmount();
+
+  // Erst nach bestätigtem Schreiben: SPIFFS-Buffer löschen
+  SPIFFS.remove(LOG_FILENAME);
+
+  Serial.println("[FLUSH] OK: " + String(totalCopied) + " Byte verschoben. Heap: "
+                 + String(heapVor) + " -> " + String(ESP.getFreeHeap()));
+  return true;
+}
+
+//-------------------------------------------------
 String schreibeDatei(String Text, String filename, bool Flag)                        // Flag true ist anhängen.
 {
   String sFileName = filename;
-  File   sFile;
-
-  if (!sdCardActive && (SPIFFS.totalBytes() - SPIFFS.usedBytes() <= 10000))
-  {
-    Serial.println("SPIFFS voll");
-    return ("voll");
-  }
-
   if (!sFileName.startsWith("/")) sFileName = "/" + filename;
 
-  Serial.print(sdCardActive ? "[SD] Schreibe: " : "[SPIFFS] Schreibe: ");
+  // Logging-Daten landen IMMER in SPIFFS (schnell, kein SD-Mount).
+  // Periodisches Flushing nach SD passiert weiter unten.
+  if (SPIFFS.totalBytes() - SPIFFS.usedBytes() <= 10000) {
+    Serial.println("SPIFFS voll!");
+    return "voll";
+  }
+
+  Serial.print("[SPIFFS] Schreibe: ");
   Serial.println(sFileName);
 
-  if (Flag)                                                                           // an Datei anhängen
-  {
-    sFile = getFS().open(sFileName, "a");
-    if (sFile) {
-        sFile.print(Text);
-        sFile.close();
+  File sFile = SPIFFS.open(sFileName, Flag ? "a" : "w");
+  if (sFile) {
+    sFile.print(Text);
+    sFile.close();
+  }
+
+  // Ist die Logdatei groß genug für einen Flush auf SD?
+  // Nicht während aktiver Webserver-Verbindung (dann hat WiFi Vorrang).
+  if (sFileName == LOG_FILENAME && sdCardPresent) {
+    File f = SPIFFS.open(LOG_FILENAME, "r");
+    size_t sz = f ? f.size() : 0;
+    if (f) f.close();
+
+    if (sz >= BUFFER_FLUSH_THRESHOLD && (millis() - webServerLastActive > 5000)) {
+      flushBufferToSD();
     }
   }
-  else
-  {
-    sFile = getFS().open(sFileName, "w");
-    if (sFile) {
-        sFile.print(Text);
-        sFile.close();
-    }
-  }
+
   return "ok";
 }
 
@@ -43,21 +140,55 @@ bool handleFileRead(String path)
 {
   if (path.endsWith("/")) path += "index.html";
   path = server.urlDecode(path);
-  String pathWithGz = path + ".gz";
-  
-  if (getFS().exists(pathWithGz) || getFS().exists(path))
-  {
-    if (getFS().exists(pathWithGz)) path += ".gz";
-    
-    Serial.print(sdCardActive ? "[SD] Lese: " : "[SPIFFS] Lese: ");
-    Serial.println(path);
-    
-    File file = getFS().open(path, "r");
-    size_t sent = server.streamFile(file, getContentType(path));
-    file.close();
-    return (true);
+
+  // Spezialfall: Logdatei wird angefordert — vorher Buffer auf SD flushen,
+  // dann SD-Datei streamen. Browser bekommt vollständigen Datensatz.
+  if (path == LOG_FILENAME && sdCardPresent) {
+    flushBufferToSD();                                               // alle aktuellen Daten erst nach SD
+    if (sdMount()) {
+      if (SD.exists(LOG_FILENAME)) {
+        File file = SD.open(LOG_FILENAME, "r");
+        size_t fileSize = file.size();
+        Serial.println("[SD] Stream Logdatei (" + String(fileSize) + " Byte) — BLE pausiert");
+        webServerLastActive = millis();                              // BLE bleibt pausiert
+        server.streamFile(file, "text/csv");
+        file.close();
+        sdUnmount();
+        Serial.println("[SD] Stream fertig, BLE wird gleich wieder aktiv");
+        return true;
+      }
+      sdUnmount();
+    }
+    // Fallback wenn SD-Datei nicht existiert: SPIFFS-Buffer ausliefern
   }
-  return (false);
+
+  String pathWithGz = path + ".gz";
+
+  // SPIFFS prüfen (immer aktiv)
+  if (SPIFFS.exists(pathWithGz) || SPIFFS.exists(path))
+  {
+    if (SPIFFS.exists(pathWithGz)) path += ".gz";
+    Serial.println("[SPIFFS] Lese: " + path);
+    File file = SPIFFS.open(path, "r");
+    server.streamFile(file, getContentType(path));
+    file.close();
+    return true;
+  }
+
+  // Sonst: SD on-demand (z.B. archivierte ältere Dateien)
+  if (sdCardPresent && sdMount()) {
+    if (SD.exists(pathWithGz) || SD.exists(path)) {
+      if (SD.exists(pathWithGz)) path += ".gz";
+      Serial.println("[SD] Lese: " + path);
+      File file = SD.open(path, "r");
+      server.streamFile(file, getContentType(path));
+      file.close();
+      sdUnmount();
+      return true;
+    }
+    sdUnmount();
+  }
+  return false;
 }
 
 //-------------------------------------------------
@@ -66,31 +197,24 @@ void Loeschen()
   String sFileName = server.arg(0);
   if (!sFileName.startsWith("/")) sFileName = "/" + sFileName;
 
-  Serial.print(sdCardActive ? "[SD] Loesche : " : "[SPIFFS] Loesche : ");
-  Serial.println(sFileName);
-  
-  getFS().remove(sFileName);                                                       // hier wird gelöscht
+  if (SPIFFS.exists(sFileName)) {
+    Serial.println("[SPIFFS] Loesche: " + sFileName);
+    SPIFFS.remove(sFileName);
+  } else if (sdCardPresent && sdMount()) {
+    Serial.println("[SD] Loesche: " + sFileName);
+    SD.remove(sFileName);
+    sdUnmount();
+  }
 
   Listen();
 }
 
 //-------------------------------------------------
-void formatSpeicher() {                                                               // Formatiert den Speicher
-  if (sdCardActive) {
-      Serial.println("[SD] Formatierung nicht unterstützt.");
-  } else {
-      Serial.println("[SPIFFS] Formatiere Speicher...");
-      SPIFFS.format();
-  }
+void formatSpeicher() {
+  Serial.println("[SPIFFS] Formatiere Speicher...");
+  SPIFFS.format();
   Listen();
 }
 
-size_t getFSTotalBytes() {
-  if (sdCardActive) return SD.totalBytes();
-  return SPIFFS.totalBytes();
-}
-
-size_t getFSUsedBytes() {
-  if (sdCardActive) return SD.usedBytes();
-  return SPIFFS.usedBytes();
-}
+size_t getFSTotalBytes() { return SPIFFS.totalBytes(); }
+size_t getFSUsedBytes()  { return SPIFFS.usedBytes(); }

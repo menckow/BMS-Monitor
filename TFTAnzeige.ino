@@ -2,7 +2,15 @@
 // Helper for drawing boxed values with FreeFonts WITHOUT FLICKER using GFXcanvas1
 void printValueBox(String valStr, String unitStr, int x, int y, int w, int h, uint16_t color, const uint8_t *valFont, const uint8_t *unitFont, uint8_t alignMode = 0) {
   TFT_eSprite canvas = TFT_eSprite(&tft);
-  canvas.createSprite(w, h);
+  if (canvas.createSprite(w, h) == nullptr) {
+    // Kein Heap für Sprite — direkt auf TFT zeichnen als Fallback
+    tft.setTextColor(color, TFT_BLACK);
+    tft.setTextDatum(ML_DATUM);
+    if (valFont) tft.loadFont(valFont);
+    tft.drawString(valStr + " " + unitStr, x + 2, y + h / 2);
+    if (valFont) tft.unloadFont();
+    return;
+  }
   canvas.fillSprite(TFT_BLACK);
   canvas.setTextColor(color, TFT_BLACK); 
   

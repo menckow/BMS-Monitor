@@ -99,11 +99,12 @@ String   sLogFileName = "Log.txt",
          sRestZeit    = "",
          ResetGrund   = "";
 
-bool     sdCardActive = false;                                       // Flag für SD-Karte (AKTUELL DEAKTIVIERT)
+bool     sdCardPresent = false;                                      // Karte beim Booten erkannt
+bool     sdCardActive = false;                                       // Aktuell gemountet (nur kurz beim Loggen)
 int      lastLogMinute = -1;                                         // Merker für Intervall-Log
 uint32_t webServerLastActive = 0;                                    // Zeitstempel für Webserver-Aktivität
 
-// SPIClass sdSPI(HSPI);                                                // Deaktiviert wegen RAM-Mangel
+SPIClass sdSPI(HSPI);                                                // Separater SPI-Bus für SD (HSPI: CLK=14, MISO=2, MOSI=15, CS=13)
 
 String   FehlerName[] = {"Zellen Ueberspannung", "Zellen Unterspannung",
                          "Batterie Ueberspannung", "Batterie-Unterspannung",
@@ -207,16 +208,20 @@ void setup()
 
   SPIFFS.begin(true);
 
-  /* SD-Karte deaktiviert wegen Webserver-Problemen (RAM)
-  sdSPI.begin(14, 2, 15, 13); 
-  if (SD.begin(13, sdSPI)) {
-    sdCardActive = true;
-    Serial.println("TTGO T4 SD-Karte gefunden und aktiv.");
+  // SD-Karte: nur beim Booten kurz mounten zum Erkennen, dann wieder freigeben.
+  // Während des Webserver-Betriebs ist die SD-Lib NICHT geladen → ~20 KB Heap mehr verfügbar.
+  // Echte SD-Zugriffe mounten on-demand (siehe sdMount() / sdUnmount() in FileSystem.ino).
+  sdSPI.begin(14, 2, 15, 13);
+  uint32_t heapVorSD = ESP.getFreeHeap();
+  if (SD.begin(13, sdSPI, 4000000)) {
+    sdCardPresent = true;
+    Serial.println("SD-Karte erkannt (" + String(SD.cardSize() / (1024 * 1024)) + " MB). Heap-Verbrauch: "
+                   + String(heapVorSD - ESP.getFreeHeap()) + " Byte");
+    SD.end();                                                        // SOFORT wieder unmounten — Heap freigeben!
   } else {
-    Serial.println("TTGO T4 SD-Karte NICHT gefunden, nutze internen Speicher.");
+    Serial.println("Keine SD-Karte gefunden, nutze SPIFFS.");
+    sdSPI.end();
   }
-  */
-  sdCardActive = false;
 
   pinMode(Backlight, OUTPUT);                                        // LED als Output definieren
   analogWrite(Backlight, 200);                                       // Helligkeit vorgeben
@@ -305,6 +310,16 @@ void setup()
 
   tft.println("Intervall " + Intervall);
   tft.println("AP-PASS   " + myPassword);
+  if (sdCardPresent) {
+    tft.setTextColor(TFT_GREEN);
+    tft.println("SD-Karte: OK (on-demand)");
+    tft.setTextColor(TFT_YELLOW);
+  } else {
+    tft.setTextColor(TFT_RED);
+    tft.println("SD-Karte: nicht gefunden");
+    tft.setTextColor(TFT_YELLOW);
+  }
+  tft.println("Heap: " + String(ESP.getFreeHeap() / 1024) + " KB frei");
   yieldWeb(2000);
 
   Serial.println("DS1307RTC Read Test");
@@ -758,7 +773,8 @@ void loop()
       //***************************************************
       TFT_Anzeige();                                                    // alles auf dem TFT ausgeben
       //***************************************************
-      mache_HTML_Seite();                                              // HTML-Indexseite aufbereiten
+      // mache_HTML_Seite() hier entfernt — server.send() nur im Handler-Kontext erlaubt!
+      // handleRoot() liest beim Browser-Request direkt die aktuellen globalen Variablen.
       //***************************************************
       // CSV-Zeile aufbauen
       now = myRTC.now();
@@ -884,7 +900,7 @@ void loop()
     {
       Serial.println("Bluetooth - Fehler");
       TFT_Anzeige();
-      mache_HTML_Seite();                                           // HTML-Indexseite aufbereiten
+      // mache_HTML_Seite() hier entfernt — handleRoot() sendet beim Browser-Request aktuelle Daten.
     }
 
     //  tft.setCursor(0, 48);

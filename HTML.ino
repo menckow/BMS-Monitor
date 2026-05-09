@@ -30,139 +30,104 @@ void mache_HTML_Seite()                                                        /
   DateTime now = myRTC.now();
 
   Minute = String(now.minute());
-  if (now.minute() < 10)
-  {
-    Minute = "0" + Minute;                                                       // für Uhrzeit in Überschrift
-  }
+  if (now.minute() < 10) Minute = "0" + Minute;
 
-  if (aktuell_Strom < 0)                                                         // entladen
-  {
+  if (aktuell_Strom < 0) {
     Hinweis  = "Zeit bis leer:";
     RestZeit = -1 * (RestLadung / aktuell_Strom);
-  }
-  else if (aktuell_Strom > 0)                                                    // laden
-  {
+  } else if (aktuell_Strom > 0) {
     Hinweis  = "Zeit bis voll:";
     RestZeit = (balance_Capacity - RestLadung) / aktuell_Strom;
-  }
-  else                                                                           // Ruhezustand
-  {
+  } else {
     RestZeit = 0;
   }
 
-  sRestZeit = String(int(RestZeit)) + ":";                                       // ergibt Restzeit Stunden
+  sRestZeit = String(int(RestZeit)) + ":";
+  if (60 * (RestZeit - int(RestZeit)) < 10) sRestZeit += "0";
+  sRestZeit += String(int(60 * (RestZeit - (int(RestZeit))))) + " Std:Min";
+  if (aktuell_Strom == 0) sRestZeit = "";
 
-  if (60 * (RestZeit - int(RestZeit)) < 10)                                      // Minuten, führende Null zufügen
-  {
-    sRestZeit += "0";
-  }
-  sRestZeit += String(int(60 * (RestZeit - (int(RestZeit)))));                   // Restzeit in Minuten
-  sRestZeit += " Std:Min";
+  // Komplette Seite in einem String aufbauen — vermeidet Chunked-Encoding,
+  // ein einziges server.send() mit Content-Length ist robust gegen TCP-Pufferprobleme.
+  String page;
+  page.reserve(5000);                                                            // genug Platz vorab reservieren
 
-  if (aktuell_Strom == 0) sRestZeit    = "";
+  page  = "<!DOCTYPE html><html lang='de'><head><meta charset='UTF-8'>"
+          "<meta name='viewport' content='width=device-width,initial-scale=1.0'>"
+          "<meta http-equiv='refresh' content='60'><title>BMS-Logger</title>";
+  page += getModernCSS();
+  page += "</head><body><div class='container'>";
+  page += "<div class='top-bar'><h2>BMS-Logger</h2><span class='badge blue'>";
+  page += String(now.day()) + "." + String(now.month()) + "." + String(now.year());
+  page += " &nbsp;" + String(now.hour()) + ":" + Minute + "</span></div>";
+  page += "<div class='nav-bar'><a class='btn' href='/'>Aktualisieren</a>"
+          "<a class='btn' href='Chart'>Diagramme</a>"
+          "<a class='btn' href='Listen'>Dateien</a>"
+          "<a class='btn' href='/BMS_LOG.CSV' download>Log-Download</a>"
+          "<a class='btn' href='Setup'>Setup</a></div>";
 
-  // HTTP-Antwort starten (Streaming-Modus)
-  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-  server.send(200, "text/html", "");
+  page += "<div class='card'><h3>System Info</h3><table class='info-table'>";
+  page += "<tr><td>Lauft seit</td><td>" + bootZeit + "</td></tr>";
+  page += "<tr><td>BT Name</td><td>" + BT_Name + "</td></tr>";
+  page += "<tr><td>BMS Typ</td><td>" + packVersionsInfo.sBMSTyp + "</td></tr>";
+  page += "<tr><td>BMS Version</td><td>0x" + String(packBasicInfo.BMS_Version, HEX) + "</td></tr>";
+  page += "<tr><td>Anzahl Zyklen</td><td>" + String(Anzahl_Zyklen) + "</td></tr>";
+  page += "</table></div>";
 
-  String chunk;
-  chunk = "<!DOCTYPE html>\n<html lang='de'>\n<head><meta charset='UTF-8'>"
-          "<link rel=\"icon\" type=\"image/vnd.microsoft.icon\" href=\"favicon.ico\">"
-          "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
-          "<meta http-equiv='refresh' content='60'>"
-          "<title>BMS-Logger</title>";
-  chunk += getModernCSS();
-  chunk += "<script>window.history.pushState({}, document.title, window.location.pathname);</script></head><body><div class='container'>";
-  server.sendContent(chunk);
-  
-  // Header / Navigation
-  chunk = "<div class='top-bar'><h2>BMS-Logger</h2><span class='badge blue'>" + String(now.day(), DEC) + "." + String(now.month(), DEC) + "." + String(now.year(), DEC) + " &nbsp;" + String(now.hour(), DEC) + ":" + Minute + "</span></div>";
-  chunk += "<div class='nav-bar'><a class='btn' href='/'>Aktualisieren</a><a class='btn' href='Chart'>Diagramme</a><a class='btn' href='Listen'>Dateien</a><a class='btn' href='Setup'>Setup</a></div>";
-  server.sendContent(chunk);
+  page += "<div class='card'><h3>Batterie Status</h3><table class='info-table'>";
+  page += "<tr><td>Ladezustand</td><td><b>" + String(aktuell_Ladezustand) + " %</b></td></tr>";
+  page += "<tr><td>Gesamtspannung</td><td><b>" + String(aktuell_Spannung, 3) + " V</b></td></tr>";
+  page += "<tr><td>Strom</td><td>" + String(aktuell_Strom) + " A</td></tr>";
+  page += "<tr><td>Leistung</td><td>" + String(packBasicInfo.Watts) + " W</td></tr>";
+  page += "<tr><td>Restkapazitat</td><td>" + String(RestLadung) + " Ah / " + String(balance_Capacity) + " Ah</td></tr>";
+  if (aktuell_Strom != 0) page += "<tr><td>" + Hinweis + "</td><td>" + sRestZeit + "</td></tr>";
+  page += "<tr><td>Temperaturen</td><td>";
+  page += String(packBasicInfo.Temp1 / 10.0, 1) + " &deg;C, " + String(packBasicInfo.Temp2 / 10.0, 1) + " &deg;C</td></tr>";
+  page += "</table></div>";
 
-  // System Info Card
-  chunk = "<div class='card'><h3>System Info</h3><table class='info-table'>";
-  chunk += "<tr><td>Läuft seit</td><td>" + bootZeit + "</td></tr>";
-  chunk += "<tr><td>BT Name</td><td>" + BT_Name + "</td></tr>";
-  chunk += "<tr><td>BMS Typ</td><td>" + packVersionsInfo.sBMSTyp + "</td></tr>";
-  chunk += "<tr><td>BMS Version</td><td>0x" + String(packBasicInfo.BMS_Version, HEX) + "</td></tr>";
-  chunk += "<tr><td>Anzahl Zyklen</td><td>" + String(Anzahl_Zyklen) + "</td></tr>";
-  chunk += "</table></div>";
-  server.sendContent(chunk);
-
-  // Battery Status Card
-  chunk = "<div class='card'><h3>Batterie Status</h3><table class='info-table'>";
-  chunk += "<tr><td>Ladezustand</td><td><b>" + String(aktuell_Ladezustand) + " %</b></td></tr>";
-  chunk += "<tr><td>Gesamtspannung</td><td><b>" + String(aktuell_Spannung, 3) + " V</b></td></tr>";
-  chunk += "<tr><td>Strom</td><td>" + String(aktuell_Strom) + " A</td></tr>";
-  chunk += "<tr><td>Leistung</td><td>" + String(packBasicInfo.Watts) + " W</td></tr>";
-  chunk += "<tr><td>Restkapazität</td><td>" + String(RestLadung) + " Ah / " + String(balance_Capacity) + " Ah</td></tr>";
-  if (aktuell_Strom != 0) {
-    chunk += "<tr><td>" + Hinweis + "</td><td>" + sRestZeit + "</td></tr>";
-  }
-  
-  chunk += "<tr><td>NTC's (Temperaturen)</td><td>";
-  chunk += String(packBasicInfo.Temp1 / 10.0, 1) + " &deg;C, " + String(packBasicInfo.Temp2 / 10.0, 1) + " &deg;C</td></tr>";
-  chunk += "</table></div>";
-  server.sendContent(chunk);
-
-  // Cell Info Card mit Bar-Charts
-  chunk = "<div class='card'><h3>Zellen Info</h3>";
-  
   float maxVal = 0, minVal = 5000;
   uint8_t minZelle = 0, maxZelle = 0;
-  for (uint8_t i = 0 ; i < Anzahl_Zellen ; i++) {
+  for (uint8_t i = 0; i < Anzahl_Zellen; i++) {
     if (packCellInfo.CellVolt[i] > maxVal) { maxVal = packCellInfo.CellVolt[i]; maxZelle = i + 1; }
     if (packCellInfo.CellVolt[i] < minVal) { minVal = packCellInfo.CellVolt[i]; minZelle = i + 1; }
   }
-
-  chunk += "<p style='margin-top:0'>Zellendifferenz (" + String(maxZelle) + " - " + String(minZelle) + "): <b>" + String((maxVal - minVal), 0) + " mV</b></p>";
-  chunk += "<table style='width:100%'>";
-  server.sendContent(chunk);
-  chunk = "";
-
+  page += "<div class='card'><h3>Zellen Info</h3>";
+  page += "<p style='margin-top:0'>Zellendifferenz (" + String(maxZelle) + "-" + String(minZelle) + "): <b>";
+  page += String((maxVal - minVal), 0) + " mV</b></p><table style='width:100%'>";
   for (uint8_t i = 0; i < Anzahl_Zellen; i++) {
     float v = packCellInfo.CellVolt[i] / 1000.0;
     int pct = int((v - 2.8) / (4.2 - 2.8) * 100.0);
-    if(pct < 0) pct = 0; if(pct > 100) pct = 100;
-    
-    String pColor = "#28a745"; // green
-    if(v < 3.0) pColor = "#dc3545"; // red
-    else if(v < 3.2) pColor = "#ffc107"; // yellow
-
-    chunk += "<tr><td style='width:20%;font-weight:bold'>C" + String(i + 1);
-    if(bitRead(packBasicInfo.BalanceCodeLow, i)) chunk += " <span style='color:#007bff;font-size:1.2em' title='Balancing aktiv'>*</span>";
-    chunk += "</td>";
-    chunk += "<td style='width:25%'>" + String(v, 3) + " V</td>";
-    chunk += "<td style='width:55%'><div class='progress-container'><div class='progress-bar' style='width:" + String(pct) + "%;background-color:" + pColor + "'></div></div></td></tr>";
-    
-    if (chunk.length() > 500) { server.sendContent(chunk); chunk = ""; }
+    if (pct < 0) pct = 0; if (pct > 100) pct = 100;
+    String pColor = (v < 3.0) ? "#dc3545" : (v < 3.2) ? "#ffc107" : "#28a745";
+    page += "<tr><td style='width:20%;font-weight:bold'>C" + String(i + 1);
+    if (bitRead(packBasicInfo.BalanceCodeLow, i)) page += " *";
+    page += "</td><td style='width:25%'>" + String(v, 3) + " V</td>";
+    page += "<td><div class='progress-container'><div class='progress-bar' style='width:";
+    page += String(pct) + "%;background-color:" + pColor + "'></div></div></td></tr>";
   }
-  chunk += "</table></div>";
-  server.sendContent(chunk);
+  page += "</table></div>";
 
-  // FET Control Card
-  chunk = "<div class='card'><h3>System Steuerung</h3><table class='info-table'>";
   int currentDis = bitRead(packBasicInfo.MosfetStatus, 1);
   int currentChg = bitRead(packBasicInfo.MosfetStatus, 0);
-  int Discharge = (!currentDis) + (currentChg * 2);
-  int Charge = currentDis + ((!currentChg) * 2);
-
-  String disHtml = currentDis ? "<span class='badge green'>AN</span>" : "<span class='badge red'>AUS</span>";
-  String chgHtml = currentChg ? "<span class='badge green'>AN</span>" : "<span class='badge red'>AUS</span>";
-
-  chunk += "<tr><td>Entlade-FET</td><td>" + disHtml + "</td><td style='text-align:right'><a class='btn' href='/?SetzeMosFet=" + String(Discharge) + "'>Umschalten</a></td></tr>";
-  chunk += "<tr><td>Lade-FET</td><td>" + chgHtml + "</td><td style='text-align:right'><a class='btn' href='/?SetzeMosFet=" + String(Charge) + "'>Umschalten</a></td></tr>";
-  
+  page += "<div class='card'><h3>System Steuerung</h3><table class='info-table'>";
+  page += "<tr><td>Entlade-FET</td><td>";
+  page += currentDis ? "<span class='badge green'>AN</span>" : "<span class='badge red'>AUS</span>";
+  page += "</td><td style='text-align:right'><a class='btn' href='/?SetzeMosFet=";
+  page += String((!currentDis) + (currentChg * 2)) + "'>Umschalten</a></td></tr>";
+  page += "<tr><td>Lade-FET</td><td>";
+  page += currentChg ? "<span class='badge green'>AN</span>" : "<span class='badge red'>AUS</span>";
+  page += "</td><td style='text-align:right'><a class='btn' href='/?SetzeMosFet=";
+  page += String(currentDis + ((!currentChg) * 2)) + "'>Umschalten</a></td></tr>";
   if (packBasicInfo.ProtectionStatus != 0) {
-    chunk += "<tr><td style='color:#dc3545'><b>Fehlermeldungen!</b></td><td><span class='badge red'>Aktiv</span></td><td style='text-align:right'><a class='btn btn-danger' href='/StatusAbfrage'>Anzeigen</a></td></tr>";
+    page += "<tr><td style='color:#dc3545'><b>Fehlermeldungen!</b></td><td><span class='badge red'>Aktiv</span></td>";
+    page += "<td style='text-align:right'><a class='btn btn-danger' href='/StatusAbfrage'>Anzeigen</a></td></tr>";
   } else {
-    chunk += "<tr><td>System Status</td><td colspan='2'><span class='badge green'>OK</span></td></tr>";
+    page += "<tr><td>System Status</td><td colspan='2'><span class='badge green'>OK</span></td></tr>";
   }
+  page += "</table></div></div></body></html>";
 
-  chunk += "</table></div></div></body></html>\r\n";
-  server.sendContent(chunk);
-  server.sendContent("");
+  Serial.println("HTML Seite: " + String(page.length()) + " Bytes, Heap frei: " + String(ESP.getFreeHeap()));
+  server.send(200, "text/html", page);
   webServerLastActive = millis();
 }
 
@@ -173,7 +138,7 @@ void handleRoot()                                                               
   {
     String mosFetArg = server.arg("SetzeMosFet");
     Serial.println("Web-Command: SetzeMosFet = " + mosFetArg);
-    
+
     if (String(packBasicInfo.MosfetStatus) != mosFetArg)                            // nur neuer Wert
     {
       bool flag_charge, flag_discharge;
@@ -184,125 +149,93 @@ void handleRoot()                                                               
       if (mosFetArg == "3") { flag_discharge = 1; flag_charge = 1; }
 
       Serial.println("Sende BLE Befehl an BMS...");
-      set_mosfet_control(flag_discharge, flag_charge);                            // Setzte MOS_FET ein/aus
-      Variable_X = packBasicInfo.MosfetStatus;                                    // warten bis FET gesetzt
-      
-      for (nX = 1; nX <= 10; nX++)                                                // max 10 Sekunden warten
-      {
-        yieldWeb(1000);
-        bleRequestData();                                                         // BMS abfragen
-        if (Variable_X != packBasicInfo.MosfetStatus) {
-          Serial.println("BMS hat Status erfolgreich geändert!");
-          break;
-        }
-      }
-      mache_HTML_Seite();                                                         // HTML neu machen
+      set_mosfet_control(flag_discharge, flag_charge);
+      // Kein 10s-Warten — Browser bekommt sofort den Redirect,
+      // der Status wird im nächsten loop()-Durchlauf per bleRequestData() aktualisiert.
     }
+
+    // Sofortiger Redirect zur Hauptseite — kein doppeltes Senden
+    server.sendHeader("Location", "/");
+    server.send(302, "text/plain", "");
+    webServerLastActive = millis();
+    Screensaver = 0;
+    return;
   }
-  
+
   Serial.println("HTML - Anfrage Root");
 
-  mache_HTML_Seite();                                                         // Jetzt wird gestreamt!
-  
-  if (Screensaver >= 600)                                                   // Bildschirm schonen xx Sek.
+  mache_HTML_Seite();
+
+  if (Screensaver >= 600)
   {
     tft.fillScreen(TFT_BLACK);
   }
-  Screensaver = 0;                                                                   // Bildschirmschoner aus
+  Screensaver = 0;
   webServerLastActive = millis();
 }
 
 //----------------------------------------------------
-void Listen()                                                                       // Listen downloaden
-{
-  Serial.println("Listen - Anfrage");
+// Hilfsfunktion: Datei-Tabelle für eine FS in HTML-String anhängen.
+// fs::FS hat keine totalBytes/usedBytes — die kommen als Parameter rein.
+static void appendFileList(String &page, fs::FS &fs, const String &label,
+                           size_t totalB, size_t usedB, bool showFormat) {
+  page += "<div class='card'><h3>" + label + "</h3>";
+  page += "<p>Belegt: <b>" + formatBytes(usedB) + "</b> / " + formatBytes(totalB) + "</p>";
+  int pct = (totalB > 0) ? (usedB * 100) / totalB : 0;
+  page += "<div class='progress-container' style='margin-bottom:15px'><div class='progress-bar' style='width:";
+  page += String(pct) + "%;background-color:#007bff'></div></div>";
+  if (showFormat) {
+    page += "<form method='POST' action='/format'><input type='submit' value='Speicher Formatieren' class='btn btn-danger' onclick=\"return janein('Wirklich formatieren? Alle Daten gehen restlos verloren!')\"></form>";
+  }
+  page += "</div>";
 
-  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-  server.send(200, "text/html", "");
-
-  uint16_t nAnzahl = 0;                                                             // Anzahl der Einträge im Array
-  String chunk;
-
-  chunk = "<!DOCTYPE html>\n<html lang='de'>\n<head><meta charset='UTF-8'>"
-          "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
-          "<title>BMS-Dateimanager</title>";
-  chunk += getModernCSS();
-  chunk += "<script>function janein(text){return confirm(text);}</script></head><body><div class='container'>\n"
-           "<script>window.history.pushState({}, document.title, window.location.pathname);</script>";
-  chunk += "<div class='top-bar'><h2>Dateimanager</h2><a class='btn' href='/'>Zurück</a></div>";
-  server.sendContent(chunk);
-
-  File root = getFS().open("/");                                                      // Aktuell im Speicher vorhandenen Dateien
+  page += "<div class='card'><table class='info-table'>";
+  File root = fs.open("/");
   File file = root.openNextFile();
   while (file) {
-    nAnzahl ++;                                                                     // Anzahl zählen
+    String sName = file.name();
+    if (!sName.startsWith("/")) sName = "/" + sName;
+    page += "<tr><td style='font-family:monospace;width:50%'><a style='text-decoration:none;' href='" + sName + "' download>" + sName + "</a></td>";
+    page += "<td>" + formatBytes(file.size()) + "</td>";
+    page += "<td><a class='btn btn-danger' style='padding:6px 12px;font-size:0.85em' href='Loeschen?File=" + sName + "' onclick=\"return janein('" + sName + " wirklich loeschen?')\">Loeschen</a></td></tr>";
     file = root.openNextFile();
   }
   root.close();
+  page += "</table></div>";
+}
 
-  if (nAnzahl > 0)
-  {
-    sArr = new name_t[nAnzahl];                                                      // Array anlegen
-    if (sArr == nullptr) return;                                                     // kein freier Speicher
+void Listen()                                                                       // Listen downloaden
+{
+  Serial.println("Listen - Anfrage. Heap: " + String(ESP.getFreeHeap()));
 
-    nAnzahl = 0;
-    char copy[60];                                                                   // max. Anzahl Zeichen pro Zeile
-    String sTemp;
+  String page;
+  page.reserve(4000);
+  page  = "<!DOCTYPE html><html lang='de'><head><meta charset='UTF-8'>"
+          "<meta name='viewport' content='width=device-width,initial-scale=1.0'>"
+          "<title>BMS-Dateimanager</title>";
+  page += getModernCSS();
+  page += "<script>function janein(t){return confirm(t);}</script></head><body><div class='container'>";
+  page += "<div class='top-bar'><h2>Dateimanager</h2><a class='btn' href='/'>Zurueck</a></div>";
 
-    root = getFS().open("/");                                                    // Aktuell im Speicher vorhandenen Dateien
-    file = root.openNextFile();
+  // SPIFFS — immer verfügbar
+  appendFileList(page, SPIFFS, "SPIFFS Speicher",
+                 SPIFFS.totalBytes(), SPIFFS.usedBytes(), true);
 
-    while (file)                                                                     // Verzeichniss abarbeiten
-    {
-      sTemp = String(file.name()) + "#" + String(file.size());                       // Dateiname#Länge
-      sTemp.toCharArray(copy, sTemp.length() + 1);                                   // nach "copy" kopieren
-      strcpy(sArr[nAnzahl], copy);                                                   // und ins Array
-      nAnzahl ++;
-      file = root.openNextFile();
-    }
-    bsort(sArr, nAnzahl, false);                                                     // Array sortieren, Groß- und Kleinschreibung egal
-    root.close();
-
-    chunk = "<div class='card'><h3>" + String(sdCardActive ? "SD Karte" : "SPIFFS Speicher") + "</h3>";
-    chunk += "<p>Belegt: <b>" + formatBytes(getFSUsedBytes()) + "</b> / " + formatBytes(getFSTotalBytes()) + "</p>";
-    
-    int spiffsPct = (getFSTotalBytes() > 0) ? (getFSUsedBytes() * 100) / getFSTotalBytes() : 0;
-    chunk += "<div class='progress-container' style='margin-bottom:15px'><div class='progress-bar' style='width:" + String(spiffsPct) + "%;background-color:#007bff'></div></div>";
-    
-    if (!sdCardActive) {
-        chunk += "<form method='POST' action='/format'><input type='submit' value='Speicher Formatieren' class='btn btn-danger' onclick=\"return janein('Wirklich formatieren? Alle Daten gehen restlos verloren!')\"></form>";
-    }
-    chunk += "</div>";
-    server.sendContent(chunk);
-
-    chunk = "<div class='card'><table class='info-table'>";
-    for (uint16_t i = 0; i < nAnzahl; i++)                                           // HTML-Liste aufbauen
-    {
-      sTemp = sArr[i];
-      String   sName = sTemp.substring(0, sTemp.indexOf("#"));
-      String   sSize = sTemp.substring(sTemp.indexOf("#") + 1);
-      uint32_t iSize = sSize.toInt();
-      
-      chunk += "<tr><td style='font-family:monospace;width:50%'><a style='text-decoration:none;' href='" + sName + "' download>" + sName + "</a></td>";
-      chunk += "<td>" + formatBytes(iSize) + "</td>";
-      chunk += "<td><a class='btn btn-danger' style='padding:6px 12px;font-size:0.85em' href='Loeschen?File=" + sName + "' onclick=\"return janein('" + sName + " wirklich löschen?')\">Löschen</a></td></tr>";
-      
-      if (chunk.length() > 1000) { server.sendContent(chunk); chunk = ""; }
-    }
-    chunk += "</table></div>";
-    server.sendContent(chunk);
-    
-    delete[] sArr;                                                                    // Speicher des Arrays freigeben !!!
+  // SD — on-demand mounten falls vorhanden
+  if (sdCardPresent && sdMount()) {
+    appendFileList(page, SD, "SD-Karte",
+                   SD.totalBytes(), SD.usedBytes(), false);
+    sdUnmount();
   }
 
-  // Datei Hochladen
-  chunk = "<div class='card'><h3>Datei hochladen</h3>";
-  chunk += "<form method='POST' action='/upload' enctype='multipart/form-data'>";
-  chunk += "<div style='display:flex;gap:10px;align-items:center'><input type='file' name='upload' style='font-family:inherit' required>";
-  chunk += "<input type='submit' value='Upload' class='btn'></div></form></div>";
-  chunk += "</div></body></html>\n";
-  server.sendContent(chunk);
-  server.sendContent("");
+  // Datei-Upload-Formular
+  page += "<div class='card'><h3>Datei hochladen (in SPIFFS)</h3>";
+  page += "<form method='POST' action='/upload' enctype='multipart/form-data'>";
+  page += "<div style='display:flex;gap:10px;align-items:center'><input type='file' name='upload' required>";
+  page += "<input type='submit' value='Upload' class='btn'></div></form></div>";
+  page += "</div></body></html>";
+
+  server.send(200, "text/html", page);
   webServerLastActive = millis();
 }
 
